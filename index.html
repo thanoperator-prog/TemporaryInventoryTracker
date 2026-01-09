@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Inventory Counter</title>
+    
+    <!-- Default App Icon (Favicon) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22v-9.9'/%3E%3C/svg%3E">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- PDF Generation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* PDF Print Specific Styles */
+        @media print { 
+            .pdf-page-break-avoid { page-break-inside: avoid; } 
+            tr { page-break-inside: avoid; } 
+            h3, h4, h5 { page-break-after: avoid; } 
+            body { -webkit-print-color-adjust: exact; } 
+        }
+        /* Hide scrollbar for cleaner UI */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Icons (Replaces Lucide React Import) ---
+        const Icon = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const Plus = (p) => <Icon {...p}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+        const Minus = (p) => <Icon {...p}><path d="M5 12h14"/></Icon>;
+        const Trash2 = (p) => <Icon {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+        const ChevronRight = (p) => <Icon {...p}><path d="m9 18 6-6-6-6"/></Icon>;
+        const ChevronDown = (p) => <Icon {...p}><path d="m6 9 6 6 6-6"/></Icon>;
+        const Package = (p) => <Icon {...p}><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22v-9.9"/></Icon>;
+        const Folder = (p) => <Icon {...p}><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 2H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></Icon>;
+        const FolderOpen = (p) => <Icon {...p}><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></Icon>;
+        const Box = (p) => <Icon {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></Icon>;
+        const X = (p) => <Icon {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
+        const Check = (p) => <Icon {...p}><path d="M20 6 9 17l-5-5"/></Icon>;
+        const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></Icon>;
+        const Upload = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></Icon>;
+        const FileText = (p) => <Icon {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></Icon>;
+        const Printer = (p) => <Icon {...p}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></Icon>;
+        const Building = (p) => <Icon {...p}><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></Icon>;
+        const MapPin = (p) => <Icon {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></Icon>;
+        const LayoutList = (p) => <Icon {...p}><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></Icon>;
+        const ArrowLeft = (p) => <Icon {...p}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></Icon>;
+        const Hash = (p) => <Icon {...p}><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></Icon>;
+        const Edit2 = (p) => <Icon {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
+        const AlertTriangle = (p) => <Icon {...p}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></Icon>;
+        const FileDown = (p) => <Icon {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></Icon>;
+        const Archive = (p) => <Icon {...p}><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></Icon>;
+        const Warehouse = (p) => <Icon {...p}><path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><rect width="12" height="12" x="6" y="10"/></Icon>;
+        const Minimize2 = (p) => <Icon {...p}><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/></Icon>;
+        const Maximize2 = (p) => <Icon {...p}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></Icon>;
+
+        // --- Sub-Components ---
+
+        const StockSubCategory = ({ sub, stockMap, onUpdate }) => {
+          const [expanded, setExpanded] = useState(false); 
+          const subTotal = sub.items.reduce((acc, item) => acc + (stockMap[item.id] || 0), 0);
+
+          return (
+            <div className="mb-2">
+              <div 
+                className="flex items-center justify-between cursor-pointer py-3 px-3 hover:bg-slate-50 rounded-lg select-none transition-colors"
+                onClick={() => setExpanded(!expanded)}
+              >
+                <div className="flex items-center gap-3">
+                   {expanded ? <ChevronDown size={18} className="text-slate-400"/> : <ChevronRight size={18} className="text-slate-400"/>}
+                   <span className="text-sm font-semibold text-slate-700">{sub.name}</span>
+                </div>
+                {subTotal > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">{subTotal}</span>}
+              </div>
+              
+              {expanded && (
+                <div className="pl-2 pr-1 space-y-1 mt-1 border-l-2 border-slate-100 ml-5">
+                   {sub.items.map(item => (
+                      <div key={item.id} className="flex justify-between items-center py-2 px-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded">
+                         <span className="text-sm text-slate-700 font-medium break-words max-w-[60%]">{item.name}</span>
+                         <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
+                            <button 
+                              onClick={() => onUpdate(item.id, -1)} 
+                              disabled={!stockMap[item.id]} 
+                              className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100"
+                            >
+                              <Minus size={16}/>
+                            </button>
+                            <span className="w-10 text-center font-mono font-bold text-slate-800 text-sm select-none">{stockMap[item.id] || 0}</span>
+                            <button 
+                              onClick={() => onUpdate(item.id, 1)} 
+                              className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded active:bg-slate-100 active:scale-95 transition-transform"
+                            >
+                              <Plus size={16}/>
+                            </button>
+                         </div>
+                      </div>
+                   ))}
+                   {sub.items.length === 0 && <div className="text-xs text-slate-400 italic px-2 py-1">No items listed</div>}
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        const StockCategory = ({ category, stockMap, onUpdate }) => {
+          const [expanded, setExpanded] = useState(false);
+          const catTotal = category.subCategories.reduce((acc, sub) => acc + sub.items.reduce((sAcc, item) => sAcc + (stockMap[item.id] || 0), 0), 0);
+          
+          return (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all">
+               <div 
+                 className="flex justify-between items-center p-4 bg-white hover:bg-slate-50 cursor-pointer select-none border-b border-transparent hover:border-slate-100" 
+                 onClick={() => setExpanded(!expanded)}
+               >
+                  <div className="flex items-center gap-3">
+                     <div className={`p-2 rounded-lg ${expanded ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                        {expanded ? <FolderOpen size={20}/> : <Folder size={20}/>}
+                     </div>
+                     <span className="font-bold text-slate-800 text-base">{category.name}</span>
+                  </div>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${catTotal > 0 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {catTotal}
+                  </span>
+               </div>
+               {expanded && (
+                  <div className="p-2 sm:p-4 border-t border-slate-100 bg-slate-50/30">
+                     {category.subCategories.map(sub => (
+                        <StockSubCategory key={sub.id} sub={sub} stockMap={stockMap} onUpdate={onUpdate} />
+                     ))}
+                     {category.subCategories.length === 0 && <div className="text-sm text-slate-400 italic text-center py-2">No sub-categories</div>}
+                  </div>
+               )}
+            </div>
+          );
+        };
+
+        const CatalogSubCategory = ({ sub, onDelete, onEdit, onAddItem, onDeleteItem, onEditItem, isExpanded, onToggle }) => {
+          const [addingItem, setAddingItem] = useState(false);
+          const [itemName, setItemName] = useState('');
+          
+          return (
+            <div className="border border-slate-200 bg-white rounded-lg overflow-hidden mb-2 shadow-sm">
+               <div 
+                 className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-50 select-none" 
+                 onClick={onToggle}
+               >
+                 <div className="flex items-center gap-3">
+                    {isExpanded ? <ChevronDown size={18} className="text-slate-400"/> : <ChevronRight size={18} className="text-slate-400"/>}
+                    <Box size={18} className="text-slate-400" />
+                    <span className="text-sm font-bold text-slate-700">{sub.name}</span>
+                    <span className="text-xs text-slate-400 ml-1 font-normal">({sub.items.length} items)</span>
+                 </div>
+                 <div className="flex items-center gap-1">
+                     <button onClick={e=>{e.stopPropagation(); onEdit();}} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit2 size={16}/></button>
+                     <button onClick={e=>{e.stopPropagation(); onDelete();}} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"><Trash2 size={16}/></button>
+                 </div>
+               </div>
+               {isExpanded && (
+                  <div className="p-3 bg-slate-50 border-t border-slate-100">
+                     <div className="space-y-1">
+                       {sub.items.map(item => (
+                          <div key={item.id} className="flex justify-between items-center py-2 px-3 bg-white border border-slate-200 rounded-md hover:border-blue-300 transition-colors">
+                             <span className="text-sm text-slate-700 font-medium break-all">{item.name}</span>
+                             <div className="flex items-center gap-1">
+                               <button onClick={()=>onEditItem(item)} className="p-1.5 text-slate-300 hover:text-blue-600 rounded"><Edit2 size={14}/></button>
+                               <button onClick={()=>onDeleteItem(item.id)} className="p-1.5 text-slate-300 hover:text-red-500 rounded"><X size={16}/></button>
+                             </div>
+                          </div>
+                       ))}
+                     </div>
+                     
+                     {addingItem ? (
+                        <div className="flex gap-2 mt-3 animate-in fade-in">
+                           <input autoFocus value={itemName} onChange={e=>setItemName(e.target.value)} placeholder="New Item Name" className="flex-1 px-3 py-2 text-base border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onKeyDown={e=>e.key==='Enter' && (onAddItem(itemName), setItemName(''), setAddingItem(false))}/>
+                           <button onClick={()=>{onAddItem(itemName); setItemName(''); setAddingItem(false)}} className="bg-blue-600 text-white px-3 rounded-md hover:bg-blue-700"><Check size={18}/></button>
+                           <button onClick={()=>setAddingItem(false)} className="bg-white text-slate-600 px-3 rounded-md border border-slate-300 hover:bg-slate-50"><X size={18}/></button>
+                        </div>
+                     ) : (
+                        <button onClick={()=>setAddingItem(true)} className="text-sm text-blue-600 font-medium flex items-center gap-1 mt-3 px-1 hover:underline"><Plus size={16}/> Add Product Item</button>
+                     )}
+                  </div>
+               )}
+            </div>
+          );
+        };
+
+        const CatalogCategory = ({ category, isExpanded, onToggle, onDelete, onEdit, onAddSub, onDeleteSub, onEditSub, onAddItem, onDeleteItem, onEditItem, expandedSubs, setExpandedSubs }) => {
+          const [addingSub, setAddingSub] = useState(false);
+          const [subName, setSubName] = useState('');
+          
+          return (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-4">
+               <div 
+                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors select-none" 
+                 onClick={onToggle}
+               >
+                  <div className="flex items-center gap-3">
+                     <div className={`p-2 rounded-lg ${isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                       {isExpanded ? <FolderOpen size={22}/> : <Folder size={22}/>}
+                     </div>
+                     <div>
+                        <span className="font-bold text-slate-800 block text-lg">{category.name}</span>
+                        <span className="text-sm text-slate-500">{category.subCategories.length} sub-categories</span>
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                     <button onClick={e => {e.stopPropagation(); onEdit();}} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={20}/></button>
+                     <button onClick={e => {e.stopPropagation(); onDelete();}} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={20}/></button>
+                     <div className="ml-2">
+                       {isExpanded ? <ChevronDown size={24} className="text-slate-300"/> : <ChevronRight size={24} className="text-slate-300"/>}
+                     </div>
+                  </div>
+               </div>
+               {isExpanded && (
+                 <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {addingSub ? (
+                       <div className="flex gap-2 mb-4 animate-in fade-in">
+                         <input autoFocus value={subName} onChange={e=>setSubName(e.target.value)} placeholder="New Sub-category Name" className="flex-1 px-4 py-2 text-base border border-blue-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onKeyDown={e=>e.key==='Enter' && (onAddSub(subName), setSubName(''), setAddingSub(false))}/>
+                         <button onClick={()=>{onAddSub(subName); setSubName(''); setAddingSub(false)}} className="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700"><Check size={20}/></button>
+                         <button onClick={()=>setAddingSub(false)} className="bg-white text-slate-600 px-4 rounded-lg border border-slate-300 hover:bg-slate-50"><X size={20}/></button>
+                       </div>
+                    ) : (
+                       <button onClick={()=>setAddingSub(true)} className="text-sm text-blue-600 font-semibold flex items-center gap-2 mb-4 px-2 py-1.5 rounded-lg hover:bg-blue-50 w-max transition-colors"><Plus size={18}/> Add Sub-category</button>
+                    )}
+                    
+                    <div className="space-y-3">
+                       {category.subCategories.map(sub => (
+                          <CatalogSubCategory 
+                            key={sub.id} 
+                            sub={sub} 
+                            onDelete={() => onDeleteSub(sub.id)}
+                            onEdit={() => onEditSub(sub)}
+                            onAddItem={(n) => onAddItem(sub.id, n)} 
+                            onDeleteItem={(itemId) => onDeleteItem(sub.id, itemId)} 
+                            onEditItem={(item) => onEditItem(sub.id, item)}
+                            isExpanded={expandedSubs[sub.id]} 
+                            onToggle={() => setExpandedSubs(p => ({...p, [sub.id]: !p[sub.id]}))} 
+                          />
+                       ))}
+                       {category.subCategories.length === 0 && !addingSub && (
+                         <div className="text-center py-6 text-slate-400 italic text-sm bg-white rounded-lg border border-dashed border-slate-300">
+                           No sub-categories yet. Add one to start tracking items.
+                         </div>
+                       )}
+                    </div>
+                 </div>
+               )}
+            </div>
+          );
+        };
+
+        const LocationDetailView = ({ location, data, onBack, onUpdateStock, openEditRoom, openEditBox, openEditStorageRoom }) => {
+          let target = null, title = '', subtitle = '', icon = null;
+          if (location.type === 'room') { 
+            const f = data.floors.find(f => f.id === location.floorId); 
+            target = f?.rooms.find(r => r.id === location.roomId); 
+            title = target?.name; subtitle = f?.name; icon = <MapPin size={24} className="text-orange-500"/>; 
+          } else if (location.type === 'box') { 
+            target = data.storageBoxes.find(b => b.id === location.boxId); 
+            title = target?.name; subtitle = 'Storage Box'; icon = <Archive size={24} className="text-purple-500"/>; 
+          } else if (location.type === 'storageRoom') { 
+            target = data.storageRooms.find(r => r.id === location.storageRoomId); 
+            title = target?.name; subtitle = 'Storage Room'; icon = <Warehouse size={24} className="text-indigo-500"/>; 
+          }
+
+          if (!target) return <div>Location not found</div>;
+          const totalItems = Object.values(target.stock).reduce((a, b) => a + b, 0);
+
+          return (
+            <div className="animate-in slide-in-from-right-4 duration-200">
+               <button onClick={onBack} className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 mb-6 font-medium group">
+                  <div className="p-1 rounded-full group-hover:bg-blue-50 transition-colors"><ArrowLeft size={20}/></div>
+                  Back to Locations
+               </button>
+               
+               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center sticky top-[80px] z-10 gap-4">
+                  <div>
+                     <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">{subtitle}</div>
+                     <div className="flex items-center gap-3">
+                       {icon}
+                       <h1 className="text-3xl font-bold text-slate-800">{title}</h1>
+                       {target.number && <span className="text-sm bg-slate-100 text-slate-500 px-2.5 py-1 rounded-md font-mono border border-slate-200">#{target.number}</span>}
+                       <button 
+                         onClick={() => {
+                           if (location.type === 'room') openEditRoom(location.floorId, target);
+                           else if (location.type === 'box') openEditBox(target);
+                           else openEditStorageRoom(target);
+                         }}
+                         className="ml-2 p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                       >
+                         <Edit2 size={18}/>
+                       </button>
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 self-stretch sm:self-auto">
+                     <span className="text-sm text-slate-500 font-medium">Total Items</span>
+                     <span className="text-3xl font-bold text-blue-600 font-mono">{totalItems}</span>
+                  </div>
+               </div>
+
+               {data.catalog.length === 0 ? (
+                  <div className="text-center py-16 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                     <Package size={48} className="mx-auto mb-4 opacity-20"/>
+                     <p className="text-lg font-medium text-slate-500">Master List is empty.</p>
+                     <p className="text-sm mt-1">Go to "Manage Items" tab to define your equipment.</p>
+                  </div>
+               ) : (
+                 <div className="space-y-4">
+                    {data.catalog.map(cat => (
+                      <StockCategory 
+                        key={cat.id} 
+                        category={cat} 
+                        stockMap={target.stock} 
+                        onUpdate={(itemId, delta) => onUpdateStock(location.type, location, itemId, delta)}
+                      />
+                    ))}
+                 </div>
+               )}
+            </div>
+          );
+        };
+
+        const LocationsView = (props) => {
+          const { 
+            location, data, onBack, onUpdateStock, openEditRoom, openEditBox, openEditStorageRoom,
+            setExpandedFloors, expandedFloors, setExpandedStorageRooms, expandedStorageRooms, 
+            setExpandedBoxes, expandedBoxes, isAddingFloor, setIsAddingFloor, newFloorName, 
+            setNewFloorName, addFloor, openEditFloor, confirmDeleteFloor, addingRoomToFloor, 
+            newRoomName, setNewRoomName, addRoom, setAddingRoomToFloor, confirmDeleteRoom, 
+            setSelectedLocation, isAddingStorageRoom, setIsAddingStorageRoom, newStorageRoomName, 
+            setNewStorageRoomName, addStorageRoom, confirmDeleteStorageRoom, isAddingBox, 
+            setIsAddingBox, newBoxName, setNewBoxName, addStorageBox, confirmDeleteBox
+          } = props;
+
+          if (location) {
+            return (
+              <LocationDetailView 
+                location={location} 
+                data={data} 
+                onBack={onBack} 
+                onUpdateStock={onUpdateStock} 
+                openEditRoom={openEditRoom} 
+                openEditBox={openEditBox} 
+                openEditStorageRoom={openEditStorageRoom} 
+              />
+            );
+          }
+
+          return (
+            <React.Fragment>
+               {/* Floors Section */}
+               <div className="space-y-6 mb-8">
+                 <div className="flex justify-between items-end border-b border-slate-200 pb-3">
+                   <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Building size={24} className="text-blue-600"/> Floors & Rooms</h2>
+                   {!isAddingFloor && (
+                     <button onClick={() => setIsAddingFloor(true)} className="text-sm bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-50 hover:text-blue-600 font-medium transition-colors shadow-sm">
+                       <Plus size={16} /> Add Floor
+                     </button>
+                   )}
+                 </div>
+
+                 {isAddingFloor && (
+                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 mb-6 animate-in slide-in-from-top-2">
+                     <label className="text-xs font-bold text-blue-600 uppercase tracking-wide">New Floor Name</label>
+                     <div className="flex gap-3 mt-3">
+                       <input autoFocus value={newFloorName} onChange={e => setNewFloorName(e.target.value)} placeholder="e.g. Ground Floor" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onKeyDown={e => e.key === 'Enter' && addFloor()} />
+                       <button onClick={addFloor} className="bg-blue-600 text-white px-5 rounded-xl hover:bg-blue-700 transition-colors"><Check size={20}/></button>
+                       <button onClick={() => setIsAddingFloor(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors"><X size={20}/></button>
+                     </div>
+                   </div>
+                 )}
+
+                 <div className="space-y-4">
+                   {data.floors.map(floor => (
+                     <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
+                        <div 
+                          className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50/80 group select-none"
+                          onClick={() => setExpandedFloors(p => ({...p, [floor.id]: !p[floor.id]}))}
+                        >
+                           <div className="flex items-center gap-4">
+                              <div className={`p-2 rounded-lg transition-colors ${expandedFloors[floor.id] ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                {expandedFloors[floor.id] ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}
+                              </div>
+                              <div>
+                                <span className="font-bold text-lg text-slate-800 block">{floor.name}</span>
+                                <span className="text-sm text-slate-500">{floor.rooms.length} Rooms</span>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button onClick={(e) => { e.stopPropagation(); openEditFloor(floor); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={18}/></button>
+                              <button onClick={(e) => { e.stopPropagation(); confirmDeleteFloor(floor.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                           </div>
+                        </div>
+
+                        {expandedFloors[floor.id] && (
+                          <div className="p-5 bg-slate-50/50 border-t border-slate-100">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {floor.rooms.map(room => (
+                                  <div 
+                                    key={room.id} 
+                                    onClick={() => setSelectedLocation({ type: 'room', floorId: floor.id, roomId: room.id })}
+                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"
+                                  >
+                                     <div>
+                                       <div className="flex items-start justify-between mb-2">
+                                         <div className="flex items-center gap-2 text-orange-500">
+                                            <MapPin size={20} />
+                                         </div>
+                                         <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                           <button onClick={(e) => { e.stopPropagation(); openEditRoom(floor.id, room); }} className="p-1.5 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14}/></button>
+                                           <button onClick={(e) => { e.stopPropagation(); confirmDeleteRoom(floor.id, room.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                                         </div>
+                                       </div>
+                                       <span className="font-bold text-slate-700 block truncate text-lg pr-2">{room.name}</span>
+                                     </div>
+                                     <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                                       {room.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{room.number}</span> : <span></span>}
+                                       <span className="text-xs text-slate-400 font-medium">{Object.keys(room.stock).length} Items</span>
+                                     </div>
+                                  </div>
+                                ))}
+                                
+                                {addingRoomToFloor === floor.id ? (
+                                  <div className="bg-blue-50 border-2 border-blue-200 border-dashed rounded-xl p-4 h-32 flex flex-col justify-center">
+                                     <input autoFocus value={newRoomName} onChange={e => setNewRoomName(e.target.value)} placeholder="Room Name" className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 outline-none" onKeyDown={e => e.key === 'Enter' && addRoom(floor.id)} />
+                                     <div className="flex gap-2">
+                                       <button onClick={() => addRoom(floor.id)} className="flex-1 bg-blue-600 text-white text-xs py-1.5 rounded-lg hover:bg-blue-700">Add</button>
+                                       <button onClick={() => setAddingRoomToFloor(null)} className="flex-1 bg-white text-slate-600 text-xs py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">Cancel</button>
+                                     </div>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setAddingRoomToFloor(floor.id)} className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-slate-400 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 flex flex-col items-center justify-center gap-2 h-32 transition-all">
+                                    <div className="p-2 bg-slate-100 rounded-full group-hover:bg-blue-100"><Plus size={24}/></div>
+                                    <span className="text-sm font-semibold">Add Room</span>
+                                  </button>
+                                )}
+                             </div>
+                          </div>
+                        )}
+                     </div>
+                   ))}
+                   {data.floors.length === 0 && (
+                     <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300">
+                       <div className="inline-block p-4 bg-slate-50 rounded-full mb-3"><Building size={32} className="text-slate-300"/></div>
+                       <p className="text-slate-500 font-medium">No floors yet. Add a floor to get started.</p>
+                     </div>
+                   )}
+                 </div>
+               </div>
+
+               {/* Storage Rooms Section */}
+               <div className="space-y-6 mb-8">
+                 <div className="flex justify-between items-end border-b border-slate-200 pb-3">
+                   <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Warehouse size={24} className="text-indigo-600"/> Storage Rooms</h2>
+                   {!isAddingStorageRoom && (
+                     <button onClick={() => setIsAddingStorageRoom(true)} className="text-sm bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors shadow-sm">
+                       <Plus size={16} /> Add Room
+                     </button>
+                   )}
+                 </div>
+
+                 {isAddingStorageRoom && (
+                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-200 mb-6 animate-in slide-in-from-top-2">
+                     <div className="flex flex-col gap-3">
+                       <label className="text-xs font-bold text-indigo-600 uppercase tracking-wide">New Storage Room</label>
+                       <div className="flex gap-3">
+                         <input autoFocus value={newStorageRoomName} onChange={e => setNewStorageRoomName(e.target.value)} placeholder="Name (e.g. Basement Storage)" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" onKeyDown={e => e.key === 'Enter' && addStorageRoom()}/>
+                         <div className="hidden sm:flex items-center gap-1 bg-slate-50 px-3 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium select-none">
+                            <Hash size={14} /> Auto #{(data.storageRooms || []).length + 1}
+                         </div>
+                         <button onClick={addStorageRoom} className="bg-indigo-600 text-white px-5 rounded-xl hover:bg-indigo-700 transition-colors font-medium">Add</button>
+                         <button onClick={() => setIsAddingStorageRoom(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors font-medium">Cancel</button>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+
+                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div 
+                      className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 select-none"
+                      onClick={() => setExpandedStorageRooms(!expandedStorageRooms)}
+                    >
+                       <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-lg transition-colors ${expandedStorageRooms ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                            {expandedStorageRooms ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}
+                          </div>
+                          <div>
+                            <span className="font-bold text-lg text-slate-800 block">All Storage Rooms</span>
+                            <span className="text-sm text-slate-500">{(data.storageRooms || []).length} Rooms</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    {expandedStorageRooms && (
+                      <div className="p-5 bg-slate-50/50 border-t border-slate-100">
+                         {(data.storageRooms || []).length === 0 ? (
+                           <div className="text-center text-slate-400 py-8 italic">No storage rooms added.</div>
+                         ) : (
+                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                              {data.storageRooms.map(room => (
+                                <div 
+                                  key={room.id}
+                                  onClick={() => setSelectedLocation({ type: 'storageRoom', storageRoomId: room.id })}
+                                  className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"
+                                >
+                                   <div>
+                                     <div className="flex items-start justify-between mb-2">
+                                       <div className="flex items-center gap-2 text-indigo-500">
+                                          <Warehouse size={20} />
+                                       </div>
+                                       <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <button onClick={(e) => { e.stopPropagation(); openEditStorageRoom(room); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Edit2 size={14}/></button>
+                                         <button onClick={(e) => { e.stopPropagation(); confirmDeleteStorageRoom(room.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                                       </div>
+                                     </div>
+                                     <span className="font-bold text-slate-700 block truncate text-lg pr-2">{room.name}</span>
+                                   </div>
+                                   <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                                     {room.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{room.number}</span> : <span></span>}
+                                     <span className="text-xs text-slate-400 font-medium">{Object.keys(room.stock).length} Items</span>
+                                   </div>
+                                </div>
+                              ))}
+                           </div>
+                         )}
+                      </div>
+                    )}
+                 </div>
+               </div>
+
+               {/* Storage Boxes Section */}
+               <div className="space-y-6">
+                 <div className="flex justify-between items-end border-b border-slate-200 pb-3">
+                   <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Archive size={24} className="text-purple-600"/> Storage Boxes</h2>
+                   {!isAddingBox && (
+                     <button onClick={() => setIsAddingBox(true)} className="text-sm bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-50 hover:text-purple-600 font-medium transition-colors shadow-sm">
+                       <Plus size={16} /> Add Box
+                     </button>
+                   )}
+                 </div>
+
+                 {isAddingBox && (
+                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-200 mb-6 animate-in slide-in-from-top-2">
+                     <div className="flex flex-col gap-3">
+                       <label className="text-xs font-bold text-purple-600 uppercase tracking-wide">New Storage Box</label>
+                       <div className="flex gap-3">
+                         <input autoFocus value={newBoxName} onChange={e => setNewBoxName(e.target.value)} placeholder="Box Name (e.g. Flight Case A)" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none" onKeyDown={e => e.key === 'Enter' && addStorageBox()}/>
+                         <div className="hidden sm:flex items-center gap-1 bg-slate-50 px-3 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium select-none">
+                            <Hash size={14} /> Auto #{(data.storageBoxes || []).length + 1}
+                         </div>
+                         <button onClick={addStorageBox} className="bg-purple-600 text-white px-5 rounded-xl hover:bg-purple-700 transition-colors font-medium">Add</button>
+                         <button onClick={() => setIsAddingBox(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors font-medium">Cancel</button>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+
+                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div 
+                      className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 select-none"
+                      onClick={() => setExpandedBoxes(!expandedBoxes)}
+                    >
+                       <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-lg transition-colors ${expandedBoxes ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
+                            {expandedBoxes ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}
+                          </div>
+                          <div>
+                            <span className="font-bold text-lg text-slate-800 block">All Storage Boxes</span>
+                            <span className="text-sm text-slate-500">{(data.storageBoxes || []).length} Boxes</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    {expandedBoxes && (
+                      <div className="p-5 bg-slate-50/50 border-t border-slate-100">
+                         {(data.storageBoxes || []).length === 0 ? (
+                           <div className="text-center text-slate-400 py-8 italic">No storage boxes added.</div>
+                         ) : (
+                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                              {data.storageBoxes.map(box => (
+                                <div 
+                                  key={box.id}
+                                  onClick={() => setSelectedLocation({ type: 'box', boxId: box.id })}
+                                  className="bg-white border border-slate-200 rounded-xl p-4 hover:border-purple-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"
+                                >
+                                   <div>
+                                     <div className="flex items-start justify-between mb-2">
+                                       <div className="flex items-center gap-2 text-purple-500">
+                                          <Archive size={20} />
+                                       </div>
+                                       <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <button onClick={(e) => { e.stopPropagation(); openEditBox(box); }} className="p-1.5 text-slate-300 hover:text-purple-600 hover:bg-purple-50 rounded"><Edit2 size={14}/></button>
+                                         <button onClick={(e) => { e.stopPropagation(); confirmDeleteBox(box.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                                       </div>
+                                     </div>
+                                     <span className="font-bold text-slate-700 block truncate text-lg pr-2">{box.name}</span>
+                                   </div>
+                                   <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                                     {box.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{box.number}</span> : <span></span>}
+                                     <span className="text-xs text-slate-400 font-medium">{Object.keys(box.stock).length} Items</span>
+                                   </div>
+                                </div>
+                              ))}
+                           </div>
+                         )}
+                      </div>
+                    )}
+                 </div>
+               </div>
+            </React.Fragment>
+          );
+        };
+
+        const CatalogView = (props) => {
+          const { 
+            data, isAddingCategory, setIsAddingCategory, newCategoryName, setNewCategoryName, 
+            addCategory, expandedCategories, setExpandedCategories, deleteCategory, 
+            openEditCategory, addSub, delSub, openEditSub, addItem, delItem, openEditItem, 
+            expandedSubCategories, setExpandedSubCategories 
+          } = props;
+
+          const toggleAll = (expand) => {
+            const newExpandedCats = {};
+            const newExpandedSubs = {};
+            
+            if (expand) {
+              data.catalog.forEach(cat => {
+                newExpandedCats[cat.id] = true;
+                cat.subCategories.forEach(sub => {
+                  newExpandedSubs[sub.id] = true;
+                });
+              });
+            }
+            
+            setExpandedCategories(newExpandedCats);
+            setExpandedSubCategories(newExpandedSubs);
+          };
+
+          return (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-blue-50 border border-blue-100 p-6 rounded-2xl">
+                 <div className="flex gap-4">
+                    <div className="bg-blue-100 p-3 rounded-xl h-fit"><LayoutList size={24} className="text-blue-600"/></div>
+                    <div>
+                       <strong className="block mb-1 text-lg text-blue-900">Master List Mode</strong>
+                       <p className="text-sm text-blue-700">Create your Categories, Sub-categories, and Products here. These serve as templates for counting in all locations.</p>
+                    </div>
+                 </div>
+                 <div className="flex gap-2 self-start sm:self-center">
+                    <button onClick={() => toggleAll(false)} className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-blue-700 text-sm font-bold rounded-xl hover:bg-blue-50 shadow-sm transition-colors">
+                      <Minimize2 size={16} /> Collapse All
+                    </button>
+                    <button onClick={() => toggleAll(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-blue-700 text-sm font-bold rounded-xl hover:bg-blue-50 shadow-sm transition-colors">
+                      <Maximize2 size={16} /> Expand All
+                    </button>
+                 </div>
+              </div>
+
+              {isAddingCategory ? (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 animate-in slide-in-from-top-2">
+                   <label className="text-xs font-bold text-blue-600 uppercase tracking-wide">New Category Name</label>
+                   <div className="flex gap-3 mt-3">
+                      <input autoFocus value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Category Name" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onKeyDown={e => e.key === 'Enter' && addCategory()} />
+                      <button onClick={addCategory} className="bg-blue-600 text-white px-5 rounded-xl hover:bg-blue-700 transition-colors"><Check size={20}/></button>
+                      <button onClick={() => setIsAddingCategory(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors"><X size={20}/></button>
+                   </div>
+                </div>
+              ) : (
+                <button onClick={() => setIsAddingCategory(true)} className="w-full py-4 border-2 border-dashed border-slate-300 rounded-2xl text-slate-500 font-bold hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-3">
+                  <div className="p-1 bg-slate-200 rounded-full"><Plus size={20}/></div> Add Master Category
+                </button>
+              )}
+
+              {data.catalog.map(cat => (
+                <CatalogCategory 
+                  key={cat.id} 
+                  category={cat} 
+                  isExpanded={expandedCategories[cat.id]} 
+                  onToggle={() => setExpandedCategories(p => ({...p, [cat.id]: !p[cat.id]}))} 
+                  onDelete={() => deleteCategory(cat.id)} 
+                  onEdit={() => openEditCategory(cat)} 
+                  onAddSub={(name) => addSub(cat.id, name)} 
+                  onDeleteSub={(subId) => delSub(cat.id, subId)} 
+                  onEditSub={(sub) => openEditSub(cat.id, sub)} 
+                  onAddItem={(subId, name) => addItem(cat.id, subId, name)} 
+                  onDeleteItem={(subId, itemId) => delItem(cat.id, subId, itemId)} 
+                  onEditItem={(subId, item) => openEditItem(cat.id, subId, item)} 
+                  expandedSubs={expandedSubCategories} 
+                  setExpandedSubs={setExpandedSubCategories}
+                />
+              ))}
+            </div>
+          );
+        };
+
+        const ReportModal = ({ data, onClose }) => {
+          const [viewMode, setViewMode] = useState('summary');
+          
+          const getAggregatedCatalog = () => {
+            const agg = JSON.parse(JSON.stringify(data.catalog));
+            agg.forEach(cat => cat.subCategories.forEach(sub => sub.items.forEach(item => {
+                let total = 0; 
+                data.floors.forEach(f => f.rooms.forEach(r => total += (r.stock[item.id] || 0)));
+                if (data.storageBoxes) data.storageBoxes.forEach(b => total += (b.stock[item.id] || 0));
+                if (data.storageRooms) data.storageRooms.forEach(r => total += (r.stock[item.id] || 0));
+                item.count = total;
+            })));
+            return agg;
+          };
+          
+          const aggregatedData = getAggregatedCatalog();
+          const totalStock = aggregatedData.reduce((acc, c) => acc + c.subCategories.reduce((sa, s) => sa + s.items.reduce((ia, i) => ia + i.count, 0), 0), 0);
+          
+          const roomCount = data.floors.reduce((acc, f) => acc + f.rooms.reduce((rAcc, r) => rAcc + Object.values(r.stock).reduce((a,b)=>a+b,0), 0), 0);
+          const storageRoomCount = (data.storageRooms || []).reduce((acc, r) => acc + Object.values(r.stock).reduce((a,b)=>a+b,0), 0);
+          const boxCount = (data.storageBoxes || []).reduce((acc, b) => acc + Object.values(b.stock).reduce((a,b)=>a+b,0), 0);
+
+          const handleDownloadPDF = () => {
+            const element = document.getElementById('report-content');
+            const opt = { 
+              margin: [10, 10, 10, 10], 
+              filename: `inventory_report_${new Date().toISOString().slice(0,10)}.pdf`, 
+              image: { type: 'jpeg', quality: 0.98 }, 
+              html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, 
+              pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
+            };
+            
+            if (window.html2pdf) window.html2pdf().set(opt).from(element).save();
+            else { 
+              const script = document.createElement('script'); 
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; 
+              script.onload = () => window.html2pdf().set(opt).from(element).save(); 
+              document.body.appendChild(script); 
+            }
+          };
+
+          const renderStockList = (stock, containerName, containerNumber, icon) => {
+             const hasItems = Object.keys(stock).length > 0;
+             return (
+               <div className="ml-0 sm:ml-4 mb-6 bg-slate-50 p-6 rounded-xl print:bg-white print:border print:border-slate-300 shadow-sm">
+                  <h4 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-2 break-after-avoid">
+                     {icon} {containerName} {containerNumber && <span className="text-sm font-normal bg-white text-slate-500 px-2 py-0.5 rounded border">#{containerNumber}</span>}
+                  </h4>
+                  {!hasItems ? <div className="text-slate-400 italic pl-8">No items stored here.</div> : (
+                     <div className="pl-2 space-y-4">
+                        {data.catalog.map(cat => {
+                           const activeSubs = cat.subCategories.map(sub => ({ ...sub, items: sub.items.filter(item => stock[item.id] > 0) })).filter(sub => sub.items.length > 0);
+                           if (activeSubs.length === 0) return null;
+                           return (
+                              <div key={cat.id} className="break-inside-avoid mb-4">
+                                 <h5 className="font-bold text-slate-700 uppercase tracking-wider text-sm mb-2 bg-slate-200/50 p-1 rounded inline-block">{cat.name}</h5>
+                                 <div className="pl-4 border-l-2 border-slate-300 space-y-3">
+                                   {activeSubs.map(sub => (
+                                      <div key={sub.id} className="break-inside-avoid">
+                                         <div className="flex items-center gap-2 font-semibold text-slate-600 text-sm mb-1"><FolderOpen size={14} className="text-slate-400"/> {sub.name}</div>
+                                         <div className="pl-6 pr-4">{sub.items.map(item => (<div key={item.id} className="flex justify-between items-center text-sm py-1 border-b border-slate-100 last:border-0 break-inside-avoid"><span className="text-slate-800">{item.name}</span><span className="font-mono font-bold text-slate-900 bg-white px-2 rounded border border-slate-100">{stock[item.id]}</span></div>))}</div>
+                                      </div>
+                                   ))}
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
+                  )}
+               </div>
+             );
+          };
+
+          return (
+            <div className="fixed inset-0 bg-white z-50 overflow-auto animate-in fade-in">
+               <style>{`@media print { .pdf-page-break-avoid { page-break-inside: avoid; } tr { page-break-inside: avoid; } h3, h4, h5 { page-break-after: avoid; } body { -webkit-print-color-adjust: exact; } }`}</style>
+               <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 p-4 flex flex-col sm:flex-row justify-between items-center print:hidden shadow-sm z-10 gap-3">
+                  <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">Report</h2>
+                     <div className="flex bg-slate-100 rounded-xl p-1 text-sm">
+                        <button onClick={()=>setViewMode('summary')} className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode==='summary' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Tally</button>
+                        <button onClick={()=>setViewMode('location')} className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode==='location' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Allocation</button>
+                     </div>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                     <button onClick={handleDownloadPDF} className="flex-1 sm:flex-none justify-center bg-slate-800 text-white px-4 py-2.5 rounded-xl flex gap-2 items-center hover:bg-slate-900 shadow-sm transition-colors text-sm font-medium"><FileDown size={18}/> Download</button>
+                     <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex gap-2 items-center hover:bg-blue-700 shadow-sm transition-colors text-sm font-medium"><Printer size={18}/><span className="hidden sm:inline">Print</span></button>
+                     <button onClick={onClose} className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl flex gap-2 items-center hover:bg-slate-200 transition-colors text-sm font-medium"><X size={18}/> Close</button>
+                  </div>
+               </div>
+               <div id="report-content" className="max-w-5xl mx-auto p-4 sm:p-8">
+                  <div className="text-center mb-8 pb-6 border-b border-slate-200">
+                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Inventory Report</h1>
+                     <p className="text-slate-500 mb-4">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                     <div className="flex flex-wrap justify-center gap-3 text-sm">
+                        <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full font-bold border border-blue-100">Total Items: {totalStock}</span>
+                        <span className="px-4 py-1.5 bg-slate-50 text-slate-600 rounded-full font-medium border border-slate-100">Rooms: {roomCount}</span>
+                        <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full font-medium border border-indigo-100">Storage Rooms: {storageRoomCount}</span>
+                        <span className="px-4 py-1.5 bg-purple-50 text-purple-600 rounded-full font-medium border border-purple-100">Boxes: {boxCount}</span>
+                     </div>
+                  </div>
+                  {viewMode === 'summary' ? (
+                     <div className="space-y-8">
+                        <h3 className="text-lg font-bold uppercase tracking-wider text-slate-400 border-b pb-2">Equipment Tally (Consolidated)</h3>
+                        {aggregatedData.map(cat => (
+                           <div key={cat.id} className="mb-6 break-inside-avoid">
+                              <h4 className="text-xl font-bold text-slate-800 mb-4 border-l-4 border-blue-500 pl-3 py-1 bg-slate-50 rounded-r-lg">{cat.name}</h4>
+                              {cat.subCategories.map(sub => (
+                                 <div key={sub.id} className="mb-6 ml-4">
+                                    <h5 className="font-semibold text-slate-700 mb-3 flex items-center gap-2"><FolderOpen size={18} className="text-blue-400"/> {sub.name}</h5>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-sm border-collapse">
+                                         <thead><tr className="border-b-2 border-slate-100 text-slate-400 text-left"><th className="py-2 px-2">Product Item</th><th className="py-2 px-2 text-right">Total Qty</th></tr></thead>
+                                         <tbody>{sub.items.map(item => <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50"><td className="py-2 px-2 text-slate-700 font-medium">{item.name}</td><td className="py-2 px-2 text-right font-mono font-bold text-slate-900 bg-slate-50/50">{item.count}</td></tr>)}</tbody>
+                                      </table>
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        ))}
+                     </div>
+                  ) : (
+                     <div className="space-y-12">
+                        <div>
+                          <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-slate-200 pb-3"><Building size={28} className="text-blue-600"/> Floors & Rooms</h3>
+                          {data.floors.map(floor => (
+                             <div key={floor.id} className="mb-8 pl-4 border-l-2 border-slate-100">
+                                <h4 className="text-lg font-bold text-slate-600 mb-4">{floor.name}</h4>
+                                <div className="grid grid-cols-1 gap-6">
+                                  {floor.rooms.map(room => <React.Fragment key={room.id}>{renderStockList(room.stock, room.name, room.number, <MapPin size={20} className="text-orange-500"/>)}</React.Fragment>)}
+                                </div>
+                             </div>
+                          ))}
+                        </div>
+                        {(data.storageRooms && data.storageRooms.length > 0) && (
+                           <div className="break-inside-avoid">
+                              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-slate-200 pb-3"><Warehouse size={28} className="text-indigo-600"/> Storage Rooms</h3>
+                              <div className="grid grid-cols-1 gap-6 pl-4 border-l-2 border-slate-100">
+                                {data.storageRooms.map(room => <React.Fragment key={room.id}>{renderStockList(room.stock, room.name, room.number, <Warehouse size={20} className="text-indigo-500"/>)}</React.Fragment>)}
+                              </div>
+                           </div>
+                        )}
+                        {(data.storageBoxes && data.storageBoxes.length > 0) && (
+                           <div className="break-inside-avoid">
+                              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-slate-200 pb-3"><Archive size={28} className="text-purple-600"/> Storage Boxes</h3>
+                              <div className="grid grid-cols-1 gap-6 pl-4 border-l-2 border-slate-100">
+                                {data.storageBoxes.map(box => <React.Fragment key={box.id}>{renderStockList(box.stock, box.name, box.number, <Archive size={20} className="text-purple-500"/>)}</React.Fragment>)}
+                              </div>
+                           </div>
+                        )}
+                     </div>
+                  )}
+               </div>
+            </div>
+          );
+        };
+
+        const InventoryApp = () => {
+          // --- State Initialization ---
+          const [data, setData] = useState(() => {
+            const saved = localStorage.getItem('equipmentInventoryData');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (!parsed.storageBoxes) parsed.storageBoxes = [];
+              if (!parsed.storageRooms) parsed.storageRooms = [];
+              return parsed;
+            }
+            
+            // Migration for old data
+            const oldData = localStorage.getItem('equipmentInventory');
+            if (oldData) {
+              try { return migrateOldData(JSON.parse(oldData)); } 
+              catch (e) { console.error("Migration failed", e); }
+            }
+
+            return { catalog: [], floors: [], storageBoxes: [], storageRooms: [] };
+          });
+
+          const [activeTab, setActiveTab] = useState('locations'); 
+          const [selectedLocation, setSelectedLocation] = useState(null); 
+          const [showReport, setShowReport] = useState(false);
+          const fileInputRef = useRef(null);
+
+          // Expanded states
+          const [expandedFloors, setExpandedFloors] = useState({});
+          const [expandedBoxes, setExpandedBoxes] = useState(true);
+          const [expandedStorageRooms, setExpandedStorageRooms] = useState(true);
+          const [expandedCategories, setExpandedCategories] = useState({});
+          const [expandedSubCategories, setExpandedSubCategories] = useState({});
+
+          // Input states
+          const [newFloorName, setNewFloorName] = useState('');
+          const [isAddingFloor, setIsAddingFloor] = useState(false);
+          const [addingRoomToFloor, setAddingRoomToFloor] = useState(null); 
+          const [newRoomName, setNewRoomName] = useState('');
+          const [isAddingBox, setIsAddingBox] = useState(false);
+          const [newBoxName, setNewBoxName] = useState('');
+          const [isAddingStorageRoom, setIsAddingStorageRoom] = useState(false);
+          const [newStorageRoomName, setNewStorageRoomName] = useState('');
+          const [isAddingCategory, setIsAddingCategory] = useState(false);
+          const [newCategoryName, setNewCategoryName] = useState('');
+
+          // --- Modal States ---
+          const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isAlert: false });
+          const [editModal, setEditModal] = useState({ isOpen: false, type: null, floorId: null, roomId: null, boxId: null, storageRoomId: null, catId: null, subId: null, itemId: null, name: '', number: '' });
+          const [pendingRestoreData, setPendingRestoreData] = useState(null);
+
+          // Save to localStorage
+          useEffect(() => {
+            localStorage.setItem('equipmentInventoryData', JSON.stringify(data));
+          }, [data]);
+
+          // --- Helpers ---
+          const updateData = (fn) => {
+            const newData = JSON.parse(JSON.stringify(data));
+            fn(newData);
+            setData(newData);
+          };
+
+          function migrateOldData(oldFormatData) {
+            if (!Array.isArray(oldFormatData)) return null;
+            const initialStock = {};
+            const cleanCatalog = oldFormatData.map(cat => ({
+              ...cat,
+              subCategories: (cat.subCategories || []).map(sub => ({
+                ...sub,
+                items: (sub.items || []).map(item => {
+                  if (item.count > 0) initialStock[item.id] = item.count;
+                  return { id: item.id, name: item.name };
+                })
+              }))
+            }));
+            return {
+              catalog: cleanCatalog,
+              floors: [{ id: 'default-floor', name: 'Main Floor', rooms: [{ id: 'default-room', name: 'Main Storage', number: '1', stock: initialStock }] }],
+              storageBoxes: [],
+              storageRooms: []
+            };
+          }
+
+          // --- Actions ---
+          const addFloor = () => { if (!newFloorName.trim()) return; updateData(d => d.floors.push({ id: Date.now().toString(), name: newFloorName, rooms: [] })); setNewFloorName(''); setIsAddingFloor(false); };
+          const confirmDeleteFloor = (id) => setConfirmModal({ isOpen: true, title: 'Delete Floor?', message: 'Permanently delete this floor and ALL rooms inside?', onConfirm: () => { updateData(d => d.floors = d.floors.filter(f => f.id !== id)); setConfirmModal({ isOpen: false }); } });
+          const openEditFloor = (f) => setEditModal({ isOpen: true, type: 'floor', floorId: f.id, name: f.name, number: '' });
+
+          const addRoom = (fId) => { 
+            if (!newRoomName.trim()) return; 
+            updateData(d => { 
+              const f = d.floors.find(x => x.id === fId); 
+              if(f) f.rooms.push({ id: Date.now().toString(), name: newRoomName, number: (f.rooms.length + 1).toString(), stock: {} }); 
+            }); 
+            setNewRoomName(''); setAddingRoomToFloor(null); 
+          };
+          const confirmDeleteRoom = (fId, rId) => setConfirmModal({ isOpen: true, title: 'Delete Room?', message: 'Delete this room and its counts?', onConfirm: () => { updateData(d => { const f = d.floors.find(x => x.id === fId); if(f) f.rooms = f.rooms.filter(r => r.id !== rId); }); if(selectedLocation?.roomId === rId) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
+          const openEditRoom = (fId, r) => setEditModal({ isOpen: true, type: 'room', floorId: fId, roomId: r.id, name: r.name, number: r.number || '' });
+
+          const addStorageRoom = () => { if (!newStorageRoomName.trim()) return; updateData(d => { if (!d.storageRooms) d.storageRooms = []; d.storageRooms.push({ id: Date.now().toString(), name: newStorageRoomName, number: (d.storageRooms.length + 1).toString(), stock: {} }); }); setNewStorageRoomName(''); setIsAddingStorageRoom(false); };
+          const confirmDeleteStorageRoom = (id) => setConfirmModal({ isOpen: true, title: 'Delete Storage Room?', message: 'Delete this room and its counts?', onConfirm: () => { updateData(d => d.storageRooms = d.storageRooms.filter(r => r.id !== id)); if(selectedLocation?.storageRoomId === id) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
+          const openEditStorageRoom = (r) => setEditModal({ isOpen: true, type: 'storageRoom', storageRoomId: r.id, name: r.name, number: r.number || '' });
+
+          const addStorageBox = () => { if (!newBoxName.trim()) return; updateData(d => { if (!d.storageBoxes) d.storageBoxes = []; d.storageBoxes.push({ id: Date.now().toString(), name: newBoxName, number: (d.storageBoxes.length + 1).toString(), stock: {} }); }); setNewBoxName(''); setIsAddingBox(false); };
+          const confirmDeleteBox = (id) => setConfirmModal({ isOpen: true, title: 'Delete Box?', message: 'Delete this box and its counts?', onConfirm: () => { updateData(d => d.storageBoxes = d.storageBoxes.filter(b => b.id !== id)); if(selectedLocation?.boxId === id) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
+          const openEditBox = (b) => setEditModal({ isOpen: true, type: 'box', boxId: b.id, name: b.name, number: b.number || '' });
+
+          const saveEdit = () => {
+            if (!editModal.name.trim()) return;
+            updateData(d => {
+              if (editModal.type === 'floor') {
+                const floor = d.floors.find(f => f.id === editModal.floorId);
+                if (floor) floor.name = editModal.name;
+              }
+              else if (editModal.type === 'room') {
+                const f = d.floors.find(f => f.id === editModal.floorId);
+                const r = f?.rooms.find(x => x.id === editModal.roomId);
+                if(r) { r.name = editModal.name; r.number = editModal.number; }
+              }
+              else if (editModal.type === 'box') {
+                const b = d.storageBoxes.find(x => x.id === editModal.boxId);
+                if(b) { b.name = editModal.name; b.number = editModal.number; }
+              }
+              else if (editModal.type === 'storageRoom') {
+                const r = d.storageRooms.find(x => x.id === editModal.storageRoomId);
+                if(r) { r.name = editModal.name; r.number = editModal.number; }
+              }
+              else if (editModal.type === 'category') {
+                const cat = d.catalog.find(c => c.id === editModal.catId);
+                if (cat) cat.name = editModal.name;
+              }
+              else if (editModal.type === 'subcategory') {
+                const cat = d.catalog.find(c => c.id === editModal.catId);
+                const sub = cat?.subCategories.find(s => s.id === editModal.subId);
+                if (sub) sub.name = editModal.name;
+              }
+              else if (editModal.type === 'item') {
+                const cat = d.catalog.find(c => c.id === editModal.catId);
+                const sub = cat?.subCategories.find(s => s.id === editModal.subId);
+                const item = sub?.items.find(i => i.id === editModal.itemId);
+                if (item) item.name = editModal.name;
+              }
+            });
+            setEditModal({ ...editModal, isOpen: false });
+          };
+
+          const updateStock = (type, ids, itemId, delta) => {
+            updateData(d => {
+              let t = null;
+              if (type === 'room') t = d.floors.find(f => f.id === ids.floorId)?.rooms.find(r => r.id === ids.roomId);
+              else if (type === 'box') t = d.storageBoxes.find(b => b.id === ids.boxId);
+              else if (type === 'storageRoom') t = d.storageRooms.find(r => r.id === ids.storageRoomId);
+              if (t) { const v = (t.stock[itemId] || 0) + delta; if (v <= 0) delete t.stock[itemId]; else t.stock[itemId] = v; }
+            });
+          };
+
+          // Catalog Actions
+          const addCategory = () => { if (!newCategoryName.trim()) return; updateData(d => d.catalog.push({ id: Date.now().toString(), name: newCategoryName, subCategories: [] })); setNewCategoryName(''); setIsAddingCategory(false); };
+          const deleteCategory = (id) => setConfirmModal({ isOpen: true, title: 'Delete Category?', message: 'Remove category from master list?', onConfirm: () => { updateData(d => d.catalog = d.catalog.filter(c => c.id !== id)); setConfirmModal({ isOpen: false }); } });
+          const openEditCategory = (c) => setEditModal({ isOpen: true, type: 'category', catId: c.id, name: c.name });
+          
+          const addSub = (cId, n) => updateData(d => d.catalog.find(c => c.id === cId)?.subCategories.push({ id: Date.now().toString(), name: n, items: [] }));
+          const delSub = (cId, sId) => updateData(d => { const c = d.catalog.find(x => x.id === cId); if(c) c.subCategories = c.subCategories.filter(s => s.id !== sId); });
+          const openEditSub = (cId, s) => setEditModal({ isOpen: true, type: 'subcategory', catId: cId, subId: s.id, name: s.name });
+
+          const addItem = (cId, sId, n) => updateData(d => d.catalog.find(c => c.id === cId)?.subCategories.find(s => s.id === sId)?.items.push({ id: Date.now().toString(), name: n }));
+          const delItem = (cId, sId, iId) => setConfirmModal({ isOpen: true, title: 'Delete Item?', message: 'Remove item from master list?', onConfirm: () => { updateData(d => { const s = d.catalog.find(c => c.id === cId)?.subCategories.find(x => x.id === sId); if(s) s.items = s.items.filter(i => i.id !== iId); }); setConfirmModal({ isOpen: false }); } });
+          const openEditItem = (cId, sId, i) => setEditModal({ isOpen: true, type: 'item', catId: cId, subId: sId, itemId: i.id, name: i.name });
+
+          // File Handling
+          const handleBackup = () => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `inventory_backup_${new Date().toISOString().slice(0, 10)}.json`; link.click();
+          };
+          const handleRestore = (e) => {
+            const file = e.target.files?.[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              try {
+                const parsed = JSON.parse(ev.target.result);
+                let newData = null;
+                if (parsed && Array.isArray(parsed.catalog) && Array.isArray(parsed.floors)) newData = parsed;
+                else if (Array.isArray(parsed)) newData = migrateOldData(parsed);
+                if (newData) {
+                  if (!newData.storageBoxes) newData.storageBoxes = [];
+                  if (!newData.storageRooms) newData.storageRooms = [];
+                  setPendingRestoreData(newData);
+                  setConfirmModal({ isOpen: true, title: 'Restore Inventory', message: `Restore data from "${file.name}"?\nWARNING: Overwrites current data.`, isAlert: false, onConfirm: () => { setData(newData); setPendingRestoreData(null); setConfirmModal({ isOpen: false }); } });
+                } else setConfirmModal({ isOpen: true, title: 'Invalid File', message: 'Not a valid backup.', isAlert: true, onConfirm: () => setConfirmModal({ isOpen: false }) });
+              } catch (err) { setConfirmModal({ isOpen: true, title: 'Read Error', message: 'Failed to read file.', isAlert: true, onConfirm: () => setConfirmModal({ isOpen: false }) }); }
+              finally { if(fileInputRef.current) fileInputRef.current.value = ''; }
+            };
+            reader.readAsText(file);
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-20">
+              <input type="file" accept=".json" ref={fileInputRef} onChange={handleRestore} style={{ display: 'none' }} />
+              <div className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-20 border-b border-slate-200">
+                <div className="max-w-6xl mx-auto px-4 py-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-3 sm:mb-2">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md shadow-blue-200"><Package size={24}/></div>
+                      <h1 className="font-bold text-slate-900 text-xl tracking-tight">Equipment Counter</h1>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <button onClick={handleBackup} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="Backup"><Download size={20}/></button>
+                      <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="Restore"><Upload size={20}/></button>
+                      <button onClick={() => setShowReport(true)} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="Report"><FileText size={20}/></button>
+                    </div>
+                  </div>
+                  <div className="flex bg-slate-100 p-1 rounded-xl">
+                    <button onClick={() => { setActiveTab('locations'); setSelectedLocation(null); }} className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${activeTab === 'locations' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><MapPin size={18}/> Locations</button>
+                    <button onClick={() => { setActiveTab('catalog'); setSelectedLocation(null); }} className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${activeTab === 'catalog' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><LayoutList size={18}/> Master List</button>
+                  </div>
+                </div>
+              </div>
+              <div className="max-w-6xl mx-auto px-4 py-6">{activeTab === 'locations' ? <LocationsView location={selectedLocation} data={data} onBack={() => setSelectedLocation(null)} onUpdateStock={updateStock} openEditRoom={openEditRoom} openEditBox={openEditBox} openEditStorageRoom={openEditStorageRoom} setExpandedFloors={setExpandedFloors} expandedFloors={expandedFloors} setExpandedStorageRooms={setExpandedStorageRooms} expandedStorageRooms={expandedStorageRooms} setExpandedBoxes={setExpandedBoxes} expandedBoxes={expandedBoxes} isAddingFloor={isAddingFloor} setIsAddingFloor={setIsAddingFloor} newFloorName={newFloorName} setNewFloorName={setNewFloorName} addFloor={addFloor} openEditFloor={openEditFloor} confirmDeleteFloor={confirmDeleteFloor} addingRoomToFloor={addingRoomToFloor} newRoomName={newRoomName} setNewRoomName={setNewRoomName} addRoom={addRoom} setAddingRoomToFloor={setAddingRoomToFloor} confirmDeleteRoom={confirmDeleteRoom} setSelectedLocation={setSelectedLocation} isAddingStorageRoom={isAddingStorageRoom} setIsAddingStorageRoom={setIsAddingStorageRoom} newStorageRoomName={newStorageRoomName} setNewStorageRoomName={setNewStorageRoomName} addStorageRoom={addStorageRoom} confirmDeleteStorageRoom={confirmDeleteStorageRoom} isAddingBox={isAddingBox} setIsAddingBox={setIsAddingBox} newBoxName={newBoxName} setNewBoxName={setNewBoxName} addStorageBox={addStorageBox} confirmDeleteBox={confirmDeleteBox} /> : <CatalogView data={data} isAddingCategory={isAddingCategory} setIsAddingCategory={setIsAddingCategory} newCategoryName={newCategoryName} setNewCategoryName={setNewCategoryName} addCategory={addCategory} expandedCategories={expandedCategories} setExpandedCategories={setExpandedCategories} deleteCategory={deleteCategory} openEditCategory={openEditCategory} addSub={addSub} delSub={delSub} openEditSub={openEditSub} addItem={addItem} delItem={delItem} openEditItem={openEditItem} expandedSubCategories={expandedSubCategories} setExpandedSubCategories={setExpandedSubCategories}/>}</div>
+              {showReport && <ReportModal data={data} onClose={() => setShowReport(false)} />}
+              
+              {/* Modals */}
+              {confirmModal.isOpen && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"><div className={`flex items-center gap-3 ${confirmModal.isAlert ? 'text-slate-700' : 'text-red-600'} mb-4`}><div className={`${confirmModal.isAlert ? 'bg-slate-100' : 'bg-red-50'} p-3 rounded-full`}><AlertTriangle size={28}/></div><h3 className="text-xl font-bold">{confirmModal.title}</h3></div><p className="text-slate-600 mb-8 whitespace-pre-wrap leading-relaxed">{confirmModal.message}</p><div className="flex gap-3">{confirmModal.onConfirm && <button onClick={confirmModal.onConfirm} className={`flex-1 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-100 transition-transform active:scale-95 ${confirmModal.isAlert ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>{confirmModal.isAlert ? 'OK' : 'Delete'}</button>}{!confirmModal.isAlert && <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-200 transition-transform active:scale-95">Cancel</button>}</div></div></div>}
+              {editModal.isOpen && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"><h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3"><div className="p-2 bg-blue-50 rounded-lg text-blue-600"><Edit2 size={20}/></div> Edit Item</h3><div className="space-y-5"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wide">Name</label><input autoFocus className="w-full px-4 py-3 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" value={editModal.name} onChange={e => setEditModal({...editModal, name: e.target.value})} onKeyDown={e => e.key === 'Enter' && saveEdit()}/></div>{['room', 'box', 'storageRoom'].includes(editModal.type) && <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wide">Number (Optional)</label><input className="w-full px-4 py-3 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" value={editModal.number} onChange={e => setEditModal({...editModal, number: e.target.value})} onKeyDown={e => e.key === 'Enter' && saveEdit()}/></div>}</div><div className="flex gap-3 mt-8"><button onClick={saveEdit} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-transform active:scale-95">Save Changes</button><button onClick={() => setEditModal({ ...editModal, isOpen: false })} className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-200 transition-transform active:scale-95">Cancel</button></div></div></div>}
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<InventoryApp />);
+    </script>
+</body>
+</html>
