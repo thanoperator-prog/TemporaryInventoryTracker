@@ -444,64 +444,72 @@
 
               const handleDownloadPDF = () => {
                 const element = document.getElementById('report-content');
-                
-                // Helper to execute generation
-                const generate = (targetElement, callback) => {
-                    const opt = { 
-                      margin: 0.5, 
-                      filename: `inventory_report_${new Date().toISOString().slice(0,10)}.pdf`, 
-                      image: { type: 'jpeg', quality: 0.98 }, 
-                      html2canvas: { 
-                          scale: 2, 
-                          useCORS: true, 
-                          letterRendering: true, 
-                          scrollY: 0,
-                          windowWidth: 1200 // Force desktop width for consistency
-                      }, 
-                      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }, 
-                      pagebreak: { mode: ['css', 'legacy'] } 
-                    };
-                    window.html2pdf().set(opt).from(targetElement).save().finally(callback);
-                };
+                if (!element) return;
 
-                // Clone logic: Create a clone of the report content
-                // We overlay it on top of the screen (z-index) to ensuring the renderer sees it as 'visible'
-                // This fixes blank page issues caused by off-screen rendering
-                const clone = element.cloneNode(true);
+                // Create a dedicated container for PDF generation
+                // This isolates the content from the app's current scroll state and styling context
+                // Fixed position ensures it is "on screen" for the renderer, preventing blank pages
                 const container = document.createElement('div');
-                
-                container.style.position = 'absolute';
+                container.style.position = 'fixed';
                 container.style.top = '0';
                 container.style.left = '0';
-                container.style.width = '100%'; 
-                container.style.zIndex = '99999'; // Sit on top of everything
-                container.style.backgroundColor = '#ffffff'; // Ensure white background
+                container.style.width = '100%';
+                container.style.height = '100%';
+                container.style.zIndex = '99999'; // Ensure it is on top
+                container.style.backgroundColor = '#ffffff';
+                container.style.overflow = 'auto'; // Allow internal scrolling for height calculation
+
+                // Create a content wrapper with fixed width to simulate A4 paper ratio 
+                // This prevents mobile views from squashing the PDF content
+                const contentWrapper = document.createElement('div');
+                contentWrapper.style.width = '800px'; 
+                contentWrapper.style.margin = '0 auto';
+                contentWrapper.style.padding = '20px';
+                contentWrapper.style.backgroundColor = '#ffffff';
+
+                // Clone the report content
+                const clone = element.cloneNode(true);
                 
-                // Reset potential constraints on the clone to ensure full height expansion
-                clone.style.height = 'auto';
-                clone.style.overflow = 'visible';
-                clone.style.maxHeight = 'none';
+                // Remove existing layout classes from the clone that might conflict with our fixed wrapper
+                // (e.g. removing max-width constraints to let it fill our 800px wrapper)
+                clone.classList.remove('max-w-5xl', 'mx-auto', 'p-4', 'sm:p-8');
+                clone.style.width = '100%';
                 
-                container.appendChild(clone);
+                // Assemble the temporary structure
+                contentWrapper.appendChild(clone);
+                container.appendChild(contentWrapper);
                 document.body.appendChild(container);
 
-                // Scroll to top to ensure html2canvas captures from coordinate 0
-                const scrollPos = window.scrollY;
-                window.scrollTo(0, 0);
+                const opt = { 
+                  margin: 0.5, 
+                  filename: `inventory_report_${new Date().toISOString().slice(0,10)}.pdf`, 
+                  image: { type: 'jpeg', quality: 0.98 }, 
+                  html2canvas: { 
+                      scale: 2, 
+                      useCORS: true, 
+                      letterRendering: true
+                  }, 
+                  jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }, 
+                  pagebreak: { mode: ['css', 'legacy'] } 
+                };
 
                 const cleanup = () => {
                     if (document.body.contains(container)) {
                         document.body.removeChild(container);
                     }
-                    window.scrollTo(0, scrollPos); // Restore user scroll position
+                };
+
+                // Execute generation with a small delay to ensure DOM rendering
+                const save = () => {
+                    window.html2pdf().set(opt).from(contentWrapper).save().then(cleanup).catch(cleanup);
                 };
 
                 if (window.html2pdf) {
-                    generate(clone, cleanup);
+                    setTimeout(save, 500);
                 } else { 
                   const script = document.createElement('script'); 
                   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; 
-                  script.onload = () => generate(clone, cleanup); 
+                  script.onload = () => setTimeout(save, 500);
                   document.body.appendChild(script); 
                 }
               };
