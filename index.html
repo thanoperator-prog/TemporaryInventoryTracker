@@ -30,10 +30,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Expose Firebase modules to global scope for React component
-        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot };
+        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection };
     </script>
 
     <style>
@@ -87,7 +87,7 @@
 
         const renderApp = () => {
             const { useState, useEffect, useRef } = React;
-            const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot } = window.firebaseModules;
+            const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection } = window.firebaseModules;
 
             // --- Icons (Manual SVG Definitions) ---
             const Icon = ({ children, size = 24, className = "" }) => (
@@ -101,6 +101,7 @@
             const Trash2 = (p) => <Icon {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
             const ChevronRight = (p) => <Icon {...p}><path d="m9 18 6-6-6-6"/></Icon>;
             const ChevronDown = (p) => <Icon {...p}><path d="m6 9 6 6 6-6"/></Icon>;
+            const ChevronLeft = (p) => <Icon {...p}><path d="m15 18-6-6 6-6"/></Icon>;
             const Package = (p) => <Icon {...p}><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22v-9.9"/></Icon>;
             const Folder = (p) => <Icon {...p}><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 2H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></Icon>;
             const FolderOpen = (p) => <Icon {...p}><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></Icon>;
@@ -115,6 +116,7 @@
             const MapPin = (p) => <Icon {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></Icon>;
             const LayoutList = (p) => <Icon {...p}><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></Icon>;
             const ArrowLeft = (p) => <Icon {...p}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></Icon>;
+            const ArrowRightLeft = (p) => <Icon {...p}><path d="M20 17h-7"/><path d="m16 13 4 4-4 4"/><path d="M4 7h7"/><path d="m8 3-4 4 4 4"/></Icon>;
             const Hash = (p) => <Icon {...p}><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></Icon>;
             const Edit2 = (p) => <Icon {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
             const AlertTriangle = (p) => <Icon {...p}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></Icon>;
@@ -124,9 +126,11 @@
             const Minimize2 = (p) => <Icon {...p}><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/></Icon>;
             const Maximize2 = (p) => <Icon {...p}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></Icon>;
             const Tag = (p) => <Icon {...p}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></Icon>;
+            const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
 
-            // --- Firebase Config (User Provided) ---
-            const firebaseConfig = {
+            // --- Firebase Config ---
+            // Updated to use the environment's config if available, otherwise fallback to the user's config
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
               apiKey: "AIzaSyBkgdHdN8dWtsBLCif1yxH92REuR_0b_l4",
               authDomain: "temporaryequipmentinventory.firebaseapp.com",
               projectId: "temporaryequipmentinventory",
@@ -139,12 +143,12 @@
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
-            const appId = 'my-inventory';
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-inventory';
             // End Firebase Init
 
             // --- Main Application ---
             
-            const StockSubCategory = ({ sub, stockMap, onUpdate }) => {
+            const StockSubCategory = ({ sub, stockMap, onUpdate, onTransfer }) => {
                 const [expanded, setExpanded] = useState(false); 
                 const subTotal = sub.items.reduce((acc, item) => acc + (stockMap[item.id] || 0), 0);
 
@@ -162,10 +166,13 @@
                         {sub.items.map(item => (
                             <div key={item.id} className="flex justify-between items-center py-2 px-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded">
                                 <div className="flex flex-col"><span className="text-sm text-slate-700 font-medium break-words">{item.name}</span></div>
-                                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
-                                    <button onClick={() => onUpdate(item.id, -1)} disabled={!stockMap[item.id]} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100"><Minus size={16}/></button>
-                                    <span className="w-10 text-center font-mono font-bold text-slate-800 text-sm select-none">{stockMap[item.id] || 0}</span>
-                                    <button onClick={() => onUpdate(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded active:bg-slate-100 active:scale-95 transition-transform"><Plus size={16}/></button>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
+                                        <button onClick={() => onUpdate(item.id, -1)} disabled={!stockMap[item.id]} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30 disabled:hover:bg-transparent active:bg-slate-100"><Minus size={16}/></button>
+                                        <span className="w-10 text-center font-mono font-bold text-slate-800 text-sm select-none">{stockMap[item.id] || 0}</span>
+                                        <button onClick={() => onUpdate(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded active:bg-slate-100 active:scale-95 transition-transform"><Plus size={16}/></button>
+                                    </div>
+                                    <button onClick={() => onTransfer(item)} disabled={!stockMap[item.id]} className="w-8 h-9 flex items-center justify-center text-slate-400 hover:text-orange-500 hover:bg-orange-50 border border-slate-200 bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-slate-400 transition-colors" title="Transfer Item"><ArrowRightLeft size={16}/></button>
                                 </div>
                             </div>
                         ))}
@@ -176,7 +183,7 @@
                 );
             };
 
-            const StockCategory = ({ category, stockMap, onUpdate }) => {
+            const StockCategory = ({ category, stockMap, onUpdate, onTransfer }) => {
                 const [expanded, setExpanded] = useState(false);
                 const catTotal = category.subCategories.reduce((acc, sub) => acc + sub.items.reduce((sAcc, item) => sAcc + (stockMap[item.id] || 0), 0), 0);
                 return (
@@ -188,7 +195,7 @@
                         </div>
                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${catTotal > 0 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{catTotal}</span>
                     </div>
-                    {expanded && <div className="p-2 sm:p-4 border-t border-slate-100 bg-slate-50/30">{category.subCategories.map(sub => <StockSubCategory key={sub.id} sub={sub} stockMap={stockMap} onUpdate={onUpdate} />)}{category.subCategories.length === 0 && <div className="text-sm text-slate-400 italic text-center py-2">No sub-categories</div>}</div>}
+                    {expanded && <div className="p-2 sm:p-4 border-t border-slate-100 bg-slate-50/30">{category.subCategories.map(sub => <StockSubCategory key={sub.id} sub={sub} stockMap={stockMap} onUpdate={onUpdate} onTransfer={onTransfer} />)}{category.subCategories.length === 0 && <div className="text-sm text-slate-400 italic text-center py-2">No sub-categories</div>}</div>}
                     </div>
                 );
             };
@@ -221,7 +228,7 @@
                 );
             };
 
-            const LocationDetailView = ({ location, data, onBack, onUpdateStock, openEditRoom, openEditBox, openEditStorageRoom }) => {
+            const LocationDetailView = ({ location, data, onBack, onUpdateStock, openEditRoom, openEditBox, openEditStorageRoom, onOpenTransfer }) => {
                 let target = null, title = '', subtitle = '', icon = null;
                 if (location.type === 'room') { 
                   const f = data.floors.find(f => f.id === location.floorId); 
@@ -270,7 +277,7 @@
                      ) : (
                        <div className="space-y-4">
                           {data.catalog.map(cat => (
-                            <StockCategory key={cat.id} category={cat} stockMap={target.stock} onUpdate={(itemId, delta) => onUpdateStock(location.type, location, itemId, delta)}/>
+                            <StockCategory key={cat.id} category={cat} stockMap={target.stock} onUpdate={(itemId, delta) => onUpdateStock(location.type, location, itemId, delta)} onTransfer={(item) => onOpenTransfer(location, item, target.stock[item.id])}/>
                           ))}
                        </div>
                      )}
@@ -278,9 +285,9 @@
                 );
             };
 
-            const LocationsView = ({ location, data, onBack, onUpdateStock, openEditRoom, openEditBox, openEditStorageRoom, setExpandedFloors, expandedFloors, setExpandedStorageRooms, expandedStorageRooms, setExpandedBoxes, expandedBoxes, isAddingFloor, setIsAddingFloor, newFloorName, setNewFloorName, addFloor, openEditFloor, confirmDeleteFloor, addingRoomToFloor, newRoomName, setNewRoomName, addRoom, setAddingRoomToFloor, confirmDeleteRoom, setSelectedLocation, isAddingStorageRoom, setIsAddingStorageRoom, newStorageRoomName, setNewStorageRoomName, addStorageRoom, confirmDeleteStorageRoom, isAddingBox, setIsAddingBox, newBoxName, setNewBoxName, addStorageBox, confirmDeleteBox }) => {
+            const LocationsView = ({ location, data, onBack, onUpdateStock, openEditRoom, openEditBox, openEditStorageRoom, setExpandedFloors, expandedFloors, setExpandedStorageRooms, expandedStorageRooms, setExpandedBoxes, expandedBoxes, isAddingFloor, setIsAddingFloor, newFloorName, setNewFloorName, addFloor, openEditFloor, confirmDeleteFloor, addingRoomToFloor, newRoomName, setNewRoomName, addRoom, setAddingRoomToFloor, confirmDeleteRoom, setSelectedLocation, isAddingStorageRoom, setIsAddingStorageRoom, newStorageRoomName, setNewStorageRoomName, addStorageRoom, confirmDeleteStorageRoom, isAddingBox, setIsAddingBox, newBoxName, setNewBoxName, addStorageBox, confirmDeleteBox, onOpenSwapRoom, onOpenTransfer }) => {
               if (location) {
-                return <LocationDetailView location={location} data={data} onBack={onBack} onUpdateStock={onUpdateStock} openEditRoom={openEditRoom} openEditBox={openEditBox} openEditStorageRoom={openEditStorageRoom} />;
+                return <LocationDetailView location={location} data={data} onBack={onBack} onUpdateStock={onUpdateStock} openEditRoom={openEditRoom} openEditBox={openEditBox} openEditStorageRoom={openEditStorageRoom} onOpenTransfer={onOpenTransfer} />;
               }
               return (
                 <React.Fragment>
@@ -292,17 +299,27 @@
                      </div>
                      {isAddingFloor && <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-100 mb-6 animate-in slide-in-from-top-2"><label className="text-xs font-bold text-blue-600 uppercase tracking-wide">New Floor Name</label><div className="flex gap-3 mt-3"><input autoFocus value={newFloorName} onChange={e => setNewFloorName(e.target.value)} placeholder="e.g. Ground Floor" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onKeyDown={e => e.key === 'Enter' && addFloor()} /><button onClick={addFloor} className="bg-blue-600 text-white px-5 rounded-xl hover:bg-blue-700 transition-colors"><Check size={20}/></button><button onClick={() => setIsAddingFloor(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors"><X size={20}/></button></div></div>}
                      <div className="space-y-4">
-                       {data.floors.map(floor => (
+                       {data.floors.map((floor, floorIdx) => (
                          <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
                             <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50/80 group select-none" onClick={() => setExpandedFloors(p => ({...p, [floor.id]: !p[floor.id]}))}>
                                <div className="flex items-center gap-4"><div className={`p-2 rounded-lg transition-colors ${expandedFloors[floor.id] ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>{expandedFloors[floor.id] ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}</div><div><span className="font-bold text-lg text-slate-800 block">{floor.name}</span><span className="text-sm text-slate-500">{floor.rooms.length} Rooms</span></div></div>
                                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); openEditFloor(floor); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={18}/></button><button onClick={(e) => { e.stopPropagation(); confirmDeleteFloor(floor.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button></div>
                             </div>
                             {expandedFloors[floor.id] && <div className="p-5 bg-slate-50/50 border-t border-slate-100"><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {floor.rooms.map(room => (
+                                {floor.rooms.map((room, idx) => (
                                   <div key={room.id} onClick={() => setSelectedLocation({ type: 'room', floorId: floor.id, roomId: room.id })} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32">
-                                     <div><div className="flex items-start justify-between mb-2"><div className="flex items-center gap-2 text-orange-500"><MapPin size={20} /></div><div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); openEditRoom(floor.id, room); }} className="p-1.5 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14}/></button><button onClick={(e) => { e.stopPropagation(); confirmDeleteRoom(floor.id, room.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div><span className="font-bold text-slate-700 block truncate text-lg pr-2">{room.name}</span></div>
-                                     <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">{room.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{room.number}</span> : <span></span>}<span className="text-xs text-slate-400 font-medium">{Object.keys(room.stock).length} Items</span></div>
+                                     <div>
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex items-center gap-2 text-orange-500"><MapPin size={20} /></div>
+                                            <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={(e) => { e.stopPropagation(); onOpenSwapRoom(floor.id, room); }} className="p-1.5 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded" title="Swap Position"><ArrowRightLeft size={14}/></button>
+                                                <button onClick={(e) => { e.stopPropagation(); openEditRoom(floor.id, room); }} className="p-1.5 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14}/></button>
+                                                <button onClick={(e) => { e.stopPropagation(); confirmDeleteRoom(floor.id, room.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-slate-700 block truncate text-lg pr-2">{room.name}</span>
+                                    </div>
+                                     <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">{room.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{room.number}</span> : <span></span>}<span className="text-xs text-slate-400 font-medium">{Object.values(room.stock || {}).reduce((a,b)=>a+b,0)} Items</span></div>
                                   </div>
                                 ))}
                                 {addingRoomToFloor === floor.id ? <div className="bg-blue-50 border-2 border-blue-200 border-dashed rounded-xl p-4 h-32 flex flex-col justify-center"><input autoFocus value={newRoomName} onChange={e => setNewRoomName(e.target.value)} placeholder="Room Name" className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 outline-none" onKeyDown={e => e.key === 'Enter' && addRoom(floor.id)} /><div className="flex gap-2"><button onClick={() => addRoom(floor.id)} className="flex-1 bg-blue-600 text-white text-xs py-1.5 rounded-lg hover:bg-blue-700">Add</button><button onClick={() => setAddingRoomToFloor(null)} className="flex-1 bg-white text-slate-600 text-xs py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">Cancel</button></div></div> : <button onClick={() => setAddingRoomToFloor(floor.id)} className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-slate-400 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 flex flex-col items-center justify-center gap-2 h-32 transition-all"><div className="p-2 bg-slate-100 rounded-full group-hover:bg-blue-100"><Plus size={24}/></div><span className="text-sm font-semibold">Add Room</span></button>}
@@ -322,7 +339,7 @@
                      {isAddingStorageRoom && <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-200 mb-6 animate-in slide-in-from-top-2"><div className="flex flex-col gap-3"><label className="text-xs font-bold text-indigo-600 uppercase tracking-wide">New Storage Room</label><div className="flex gap-3"><input autoFocus value={newStorageRoomName} onChange={e => setNewStorageRoomName(e.target.value)} placeholder="Name (e.g. Basement Storage)" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" onKeyDown={e => e.key === 'Enter' && addStorageRoom()}/><div className="hidden sm:flex items-center gap-1 bg-slate-50 px-3 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium select-none"><Hash size={14}/> Auto #{(data.storageRooms || []).length + 1}</div><button onClick={addStorageRoom} className="bg-indigo-600 text-white px-5 rounded-xl hover:bg-indigo-700 transition-colors font-medium">Add</button><button onClick={() => setIsAddingStorageRoom(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors font-medium">Cancel</button></div></div></div>}
                      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                         <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 select-none" onClick={() => setExpandedStorageRooms(!expandedStorageRooms)}><div className="flex items-center gap-4"><div className={`p-2 rounded-lg transition-colors ${expandedStorageRooms ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{expandedStorageRooms ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}</div><div><span className="font-bold text-lg text-slate-800 block">All Storage Rooms</span><span className="text-sm text-slate-500">{(data.storageRooms || []).length} Rooms</span></div></div></div>
-                        {expandedStorageRooms && <div className="p-5 bg-slate-50/50 border-t border-slate-100">{(data.storageRooms || []).length === 0 ? <div className="text-center text-slate-400 py-8 italic">No storage rooms added.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{data.storageRooms.map(room => (<div key={room.id} onClick={() => setSelectedLocation({ type: 'storageRoom', storageRoomId: room.id })} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"><div><div className="flex items-start justify-between mb-2"><div className="flex items-center gap-2 text-indigo-500"><Warehouse size={20}/></div><div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); openEditStorageRoom(room); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Edit2 size={14}/></button><button onClick={(e) => { e.stopPropagation(); confirmDeleteStorageRoom(room.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div><span className="font-bold text-slate-700 block truncate text-lg pr-2">{room.name}</span></div><div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">{room.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{room.number}</span> : <span></span>}<span className="text-xs text-slate-400 font-medium">{Object.keys(room.stock).length} Items</span></div></div>))}</div>}</div>}
+                        {expandedStorageRooms && <div className="p-5 bg-slate-50/50 border-t border-slate-100">{(data.storageRooms || []).length === 0 ? <div className="text-center text-slate-400 py-8 italic">No storage rooms added.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{data.storageRooms.map(room => (<div key={room.id} onClick={() => setSelectedLocation({ type: 'storageRoom', storageRoomId: room.id })} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"><div><div className="flex items-start justify-between mb-2"><div className="flex items-center gap-2 text-indigo-500"><Warehouse size={20}/></div><div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); openEditStorageRoom(room); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Edit2 size={14}/></button><button onClick={(e) => { e.stopPropagation(); confirmDeleteStorageRoom(room.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div><span className="font-bold text-slate-700 block truncate text-lg pr-2">{room.name}</span></div><div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">{room.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{room.number}</span> : <span></span>}<span className="text-xs text-slate-400 font-medium">{Object.values(room.stock || {}).reduce((a,b)=>a+b,0)} Items</span></div></div>))}</div>}</div>}
                      </div>
                    </div>
 
@@ -335,7 +352,7 @@
                      {isAddingBox && <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-200 mb-6 animate-in slide-in-from-top-2"><div className="flex flex-col gap-3"><label className="text-xs font-bold text-purple-600 uppercase tracking-wide">New Storage Box</label><div className="flex gap-3"><input autoFocus value={newBoxName} onChange={e => setNewBoxName(e.target.value)} placeholder="Box Name (e.g. Flight Case A)" className="flex-1 px-4 py-2.5 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none" onKeyDown={e => e.key === 'Enter' && addStorageBox()}/><div className="hidden sm:flex items-center gap-1 bg-slate-50 px-3 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium select-none"><Hash size={14}/> Auto #{(data.storageBoxes || []).length + 1}</div><button onClick={addStorageBox} className="bg-purple-600 text-white px-5 rounded-xl hover:bg-purple-700 transition-colors font-medium">Add</button><button onClick={() => setIsAddingBox(false)} className="bg-slate-100 text-slate-600 px-5 rounded-xl hover:bg-slate-200 transition-colors font-medium">Cancel</button></div></div></div>}
                      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                         <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 select-none" onClick={() => setExpandedBoxes(!expandedBoxes)}><div className="flex items-center gap-4"><div className={`p-2 rounded-lg transition-colors ${expandedBoxes ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>{expandedBoxes ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}</div><div><span className="font-bold text-lg text-slate-800 block">All Storage Boxes</span><span className="text-sm text-slate-500">{(data.storageBoxes || []).length} Boxes</span></div></div></div>
-                        {expandedBoxes && <div className="p-5 bg-slate-50/50 border-t border-slate-100">{(data.storageBoxes || []).length === 0 ? <div className="text-center text-slate-400 py-8 italic">No storage boxes added.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{data.storageBoxes.map(box => (<div key={box.id} onClick={() => setSelectedLocation({ type: 'box', boxId: box.id })} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-purple-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"><div><div className="flex items-start justify-between mb-2"><div className="flex items-center gap-2 text-purple-500"><Archive size={20}/></div><div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); openEditBox(box); }} className="p-1.5 text-slate-300 hover:text-purple-600 hover:bg-purple-50 rounded"><Edit2 size={14}/></button><button onClick={(e) => { e.stopPropagation(); confirmDeleteBox(box.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div><span className="font-bold text-slate-700 block truncate text-lg pr-2">{box.name}</span></div><div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">{box.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{box.number}</span> : <span></span>}<span className="text-xs text-slate-400 font-medium">{Object.keys(box.stock).length} Items</span></div></div>))}</div>}</div>}
+                        {expandedBoxes && <div className="p-5 bg-slate-50/50 border-t border-slate-100">{(data.storageBoxes || []).length === 0 ? <div className="text-center text-slate-400 py-8 italic">No storage boxes added.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{data.storageBoxes.map(box => (<div key={box.id} onClick={() => setSelectedLocation({ type: 'box', boxId: box.id })} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-purple-400 hover:shadow-md cursor-pointer transition-all group relative flex flex-col justify-between h-32"><div><div className="flex items-start justify-between mb-2"><div className="flex items-center gap-2 text-purple-500"><Archive size={20}/></div><div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); openEditBox(box); }} className="p-1.5 text-slate-300 hover:text-purple-600 hover:bg-purple-50 rounded"><Edit2 size={14}/></button><button onClick={(e) => { e.stopPropagation(); confirmDeleteBox(box.id); }} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div><span className="font-bold text-slate-700 block truncate text-lg pr-2">{box.name}</span></div><div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">{box.number ? <span className="text-xs font-mono font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">#{box.number}</span> : <span></span>}<span className="text-xs text-slate-400 font-medium">{Object.values(box.stock || {}).reduce((a,b)=>a+b,0)} Items</span></div></div>))}</div>}</div>}
                      </div>
                    </div>
                 </React.Fragment>
@@ -549,12 +566,41 @@
               );
             };
 
+            const ActivityLogModal = ({ data, onClose }) => {
+                return (
+                    <div className="fixed inset-0 bg-white z-50 overflow-auto animate-in fade-in">
+                        <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 p-4 flex justify-between items-center shadow-sm z-10">
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Clock size={24} className="text-blue-600"/> Activity Log</h2>
+                            <button onClick={onClose} className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl flex gap-2 items-center hover:bg-slate-200 transition-colors text-sm font-medium"><X size={18}/> Close</button>
+                        </div>
+                        <div className="max-w-4xl mx-auto p-4 sm:p-8">
+                            {!data.activityLog || data.activityLog.length === 0 ? (
+                                <div className="text-center py-16 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                                    <Clock size={48} className="mx-auto mb-4 opacity-20"/>
+                                    <p className="text-lg font-medium text-slate-500">No activity recorded yet.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {data.activityLog.map(log => (
+                                        <div key={log.id} className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 hover:border-blue-100 transition-colors">
+                                            <div className="text-xs font-mono text-slate-400 whitespace-nowrap bg-slate-50 px-2 py-1 rounded w-fit">{new Date(log.timestamp).toLocaleString()}</div>
+                                            <div className="text-sm text-slate-700 font-medium">{log.message}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
             const InventoryApp = () => {
-                const [data, setData] = useState({ catalog: [], floors: [], storageBoxes: [], storageRooms: [] });
+                const [data, setData] = useState({ catalog: [], floors: [], storageBoxes: [], storageRooms: [], activityLog: [] });
                 const [user, setUser] = useState(null);
                 const [activeTab, setActiveTab] = useState('locations'); 
                 const [selectedLocation, setSelectedLocation] = useState(null); 
                 const [showReport, setShowReport] = useState(false);
+                const [showActivityLog, setShowActivityLog] = useState(false);
                 const fileInputRef = useRef(null);
 
                 // Expanded states
@@ -580,14 +626,19 @@
                 // --- Modal States ---
                 const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isAlert: false });
                 const [editModal, setEditModal] = useState({ isOpen: false, type: null, floorId: null, roomId: null, boxId: null, storageRoomId: null, catId: null, subId: null, itemId: null, name: '', number: '' });
+                const [transferModal, setTransferModal] = useState({ isOpen: false, sourceLocation: null, item: null, maxQty: 0, targetType: 'room', targetId: '', quantity: 1 });
+                const [swapRoomModal, setSwapRoomModal] = useState({ isOpen: false, sourceFloorId: null, sourceRoomId: null, sourceRoomName: '', targetValue: '' });
                 const [pendingRestoreData, setPendingRestoreData] = useState(null);
 
                 // --- Auth & Data Effects ---
                 useEffect(() => {
                     const initAuth = async () => {
                         try {
-                            // Try signing in anonymously first which is simplest for this setup
-                            await signInAnonymously(auth);
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
                         } catch (error) {
                             console.error("Auth failed:", error);
                             setErrorMessage("Failed to sign in. Please check your internet connection.");
@@ -600,16 +651,22 @@
 
                 useEffect(() => {
                     if (!user) return;
-                    const docRef = doc(db, 'inventory', 'main');
+                    
+                    // Use collection + doc for structured data paths based on environment guidelines
+                    // Public/Private split: Using public for this example since it's a shared inventory concept, 
+                    // but you could change 'public' to 'users'/'user.uid' for private.
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', 'main');
+                    
                     const unsubscribe = onSnapshot(docRef, (snap) => {
                         if (snap.exists()) {
                             setData(snap.data());
                         } else {
-                            const initialData = { catalog: [], floors: [], storageBoxes: [], storageRooms: [] };
+                            const initialData = { catalog: [], floors: [], storageBoxes: [], storageRooms: [], activityLog: [] };
+                            // Initial setup might require permissions check
                             setDoc(docRef, initialData).catch(err => {
                                 console.error("Permission Error:", err);
                                 if (err.code === 'permission-denied') {
-                                    setErrorMessage("Permission Denied: Please check your Firestore Security Rules in the Firebase Console.");
+                                    setErrorMessage("Permission Denied: Please check your Firestore Security Rules.");
                                 }
                             });
                             setData(initialData);
@@ -617,19 +674,30 @@
                     }, (error) => {
                         console.error("Error fetching data:", error);
                         if (error.code === 'permission-denied') {
-                            setErrorMessage("Database Access Denied.\n\nPlease go to your Firebase Console > Firestore Database > Rules and change them to:\nallow read, write: if request.auth != null;");
+                            setErrorMessage("Database Access Denied.\n\nPlease check your Firestore Rules.");
                         }
                     });
                     return unsubscribe;
                 }, [user]);
 
                 // --- Helpers ---
+                const addLog = (d, message) => {
+                    if (!d.activityLog) d.activityLog = [];
+                    d.activityLog.unshift({
+                        id: Date.now().toString() + Math.random(),
+                        timestamp: new Date().toISOString(),
+                        message
+                    });
+                    // Keep log size manageable
+                    if (d.activityLog.length > 500) d.activityLog.pop();
+                };
+
                 const updateData = (fn) => {
                     const newData = JSON.parse(JSON.stringify(data));
                     fn(newData);
                     setData(newData); // Optimistic UI update
                     if (user) {
-                        const docRef = doc(db, 'inventory', 'main');
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', 'main');
                         setDoc(docRef, newData).catch(err => {
                              console.error("Error saving data:", err);
                              if (err.code === 'permission-denied') {
@@ -656,33 +724,80 @@
                         catalog: cleanCatalog,
                         floors: [{ id: 'default-floor', name: 'Main Floor', rooms: [{ id: 'default-room', name: 'Main Storage', number: '1', stock: initialStock }] }],
                         storageBoxes: [],
-                        storageRooms: []
+                        storageRooms: [],
+                        activityLog: []
                     };
                 }
 
                 // --- Actions ---
-                const addFloor = () => { if (newFloorName.trim()) { updateData(d => d.floors.push({ id: Date.now().toString(), name: newFloorName, rooms: [] })); setNewFloorName(''); setIsAddingFloor(false); }};
-                const confirmDeleteFloor = (id) => setConfirmModal({ isOpen: true, title: 'Delete Floor?', message: 'Permanently delete this floor and ALL rooms inside?', onConfirm: () => { updateData(d => d.floors = d.floors.filter(f => f.id !== id)); setConfirmModal({ isOpen: false }); } });
+                const addFloor = () => { if (newFloorName.trim()) { updateData(d => { d.floors.push({ id: Date.now().toString(), name: newFloorName, rooms: [] }); addLog(d, `Added new floor: "${newFloorName}"`); }); setNewFloorName(''); setIsAddingFloor(false); }};
+                const confirmDeleteFloor = (id) => setConfirmModal({ isOpen: true, title: 'Delete Floor?', message: 'Permanently delete this floor and ALL rooms inside?', onConfirm: () => { updateData(d => { const f = d.floors.find(x => x.id === id); d.floors = d.floors.filter(f => f.id !== id); addLog(d, `Deleted floor: "${f?.name || 'Unknown'}"`); }); setConfirmModal({ isOpen: false }); } });
                 const openEditFloor = (f) => setEditModal({ isOpen: true, type: 'floor', floorId: f.id, name: f.name, number: '' });
 
                 const addRoom = (fId) => { 
                     if (newRoomName.trim()) { 
                         updateData(d => { 
                             const f = d.floors.find(x => x.id === fId); 
-                            if(f) f.rooms.push({ id: Date.now().toString(), name: newRoomName, number: (f.rooms.length + 1).toString(), stock: {} }); 
+                            if(f) {
+                                f.rooms.push({ id: Date.now().toString(), name: newRoomName, number: (f.rooms.length + 1).toString(), stock: {} }); 
+                                addLog(d, `Added room "${newRoomName}" to ${f.name}`);
+                            }
                         }); 
                         setNewRoomName(''); setAddingRoomToFloor(null); 
                     }
                 };
-                const confirmDeleteRoom = (fId, rId) => setConfirmModal({ isOpen: true, title: 'Delete Room?', message: 'Delete this room and its counts?', onConfirm: () => { updateData(d => { const f = d.floors.find(x => x.id === fId); if(f) f.rooms = f.rooms.filter(r => r.id !== rId); }); if(selectedLocation?.roomId === rId) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
+                const confirmDeleteRoom = (fId, rId) => setConfirmModal({ isOpen: true, title: 'Delete Room?', message: 'Delete this room and its counts?', onConfirm: () => { updateData(d => { const f = d.floors.find(x => x.id === fId); if(f) { const r = f.rooms.find(x => x.id === rId); f.rooms = f.rooms.filter(r => r.id !== rId); addLog(d, `Deleted room "${r?.name || 'Unknown'}" from ${f.name}`); } }); if(selectedLocation?.roomId === rId) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
                 const openEditRoom = (fId, r) => setEditModal({ isOpen: true, type: 'room', floorId: fId, roomId: r.id, name: r.name, number: r.number || '' });
+                const openSwapRoomModal = (fId, room) => {
+                    setSwapRoomModal({ isOpen: true, sourceFloorId: fId, sourceRoomId: room.id, sourceRoomName: room.name, targetValue: '' });
+                }
 
-                const addStorageRoom = () => { if (newStorageRoomName.trim()) { updateData(d => { if (!d.storageRooms) d.storageRooms = []; d.storageRooms.push({ id: Date.now().toString(), name: newStorageRoomName, number: (d.storageRooms.length + 1).toString(), stock: {} }); }); setNewStorageRoomName(''); setIsAddingStorageRoom(false); }};
-                const confirmDeleteStorageRoom = (id) => setConfirmModal({ isOpen: true, title: 'Delete Storage Room?', message: 'Delete this room and its counts?', onConfirm: () => { updateData(d => d.storageRooms = d.storageRooms.filter(r => r.id !== id)); if(selectedLocation?.storageRoomId === id) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
+                const executeRoomSwap = () => {
+                    const { sourceFloorId, sourceRoomId, targetValue } = swapRoomModal;
+                    if (!targetValue) return;
+                    const [targetFloorId, targetRoomId] = targetValue.split(':');
+
+                    updateData(d => {
+                        const srcFloor = d.floors.find(f => f.id === sourceFloorId);
+                        const tgtFloor = d.floors.find(f => f.id === targetFloorId);
+                        
+                        if (!srcFloor || !tgtFloor) return;
+
+                        const srcIdx = srcFloor.rooms.findIndex(r => r.id === sourceRoomId);
+                        const tgtIdx = tgtFloor.rooms.findIndex(r => r.id === targetRoomId);
+
+                        if (srcIdx === -1 || tgtIdx === -1) return;
+
+                        const srcRoomName = srcFloor.rooms[srcIdx].name;
+                        const tgtRoomName = tgtFloor.rooms[tgtIdx].name;
+
+                        // If same floor and same index (should be filtered out by UI but good to check)
+                        if (sourceFloorId === targetFloorId && srcIdx === tgtIdx) return;
+
+                        if (sourceFloorId === targetFloorId) {
+                            // Same floor swap
+                            const temp = srcFloor.rooms[srcIdx];
+                            srcFloor.rooms[srcIdx] = srcFloor.rooms[tgtIdx];
+                            srcFloor.rooms[tgtIdx] = temp;
+                        } else {
+                            // Cross floor swap
+                            const srcRoom = srcFloor.rooms[srcIdx];
+                            const tgtRoom = tgtFloor.rooms[tgtIdx];
+
+                            srcFloor.rooms[srcIdx] = tgtRoom;
+                            tgtFloor.rooms[tgtIdx] = srcRoom;
+                        }
+                        addLog(d, `Swapped rooms: "${srcRoomName}" <-> "${tgtRoomName}"`);
+                    });
+                    setSwapRoomModal({ ...swapRoomModal, isOpen: false });
+                }
+
+                const addStorageRoom = () => { if (newStorageRoomName.trim()) { updateData(d => { if (!d.storageRooms) d.storageRooms = []; d.storageRooms.push({ id: Date.now().toString(), name: newStorageRoomName, number: (d.storageRooms.length + 1).toString(), stock: {} }); addLog(d, `Added storage room: "${newStorageRoomName}"`); }); setNewStorageRoomName(''); setIsAddingStorageRoom(false); }};
+                const confirmDeleteStorageRoom = (id) => setConfirmModal({ isOpen: true, title: 'Delete Storage Room?', message: 'Delete this room and its counts?', onConfirm: () => { updateData(d => { const r = d.storageRooms.find(x => x.id === id); d.storageRooms = d.storageRooms.filter(r => r.id !== id); addLog(d, `Deleted storage room: "${r?.name || 'Unknown'}"`); }); if(selectedLocation?.storageRoomId === id) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
                 const openEditStorageRoom = (r) => setEditModal({ isOpen: true, type: 'storageRoom', storageRoomId: r.id, name: r.name, number: r.number || '' });
 
-                const addStorageBox = () => { if (newBoxName.trim()) { updateData(d => { if (!d.storageBoxes) d.storageBoxes = []; d.storageBoxes.push({ id: Date.now().toString(), name: newBoxName, number: (d.storageBoxes.length + 1).toString(), stock: {} }); }); setNewBoxName(''); setIsAddingBox(false); }};
-                const confirmDeleteBox = (id) => setConfirmModal({ isOpen: true, title: 'Delete Box?', message: 'Delete this box and its counts?', onConfirm: () => { updateData(d => d.storageBoxes = d.storageBoxes.filter(b => b.id !== id)); if(selectedLocation?.boxId === id) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
+                const addStorageBox = () => { if (newBoxName.trim()) { updateData(d => { if (!d.storageBoxes) d.storageBoxes = []; d.storageBoxes.push({ id: Date.now().toString(), name: newBoxName, number: (d.storageBoxes.length + 1).toString(), stock: {} }); addLog(d, `Added storage box: "${newBoxName}"`); }); setNewBoxName(''); setIsAddingBox(false); }};
+                const confirmDeleteBox = (id) => setConfirmModal({ isOpen: true, title: 'Delete Box?', message: 'Delete this box and its counts?', onConfirm: () => { updateData(d => { const b = d.storageBoxes.find(x => x.id === id); d.storageBoxes = d.storageBoxes.filter(b => b.id !== id); addLog(d, `Deleted storage box: "${b?.name || 'Unknown'}"`); }); if(selectedLocation?.boxId === id) setSelectedLocation(null); setConfirmModal({ isOpen: false }); } });
                 const openEditBox = (b) => setEditModal({ isOpen: true, type: 'box', boxId: b.id, name: b.name, number: b.number || '' });
 
                 const saveEdit = () => {
@@ -707,40 +822,43 @@
                     }
 
                     updateData(d => {
+                        let logMsg = '';
                         if (editModal.type === 'floor') {
                             const floor = d.floors.find(f => f.id === editModal.floorId);
-                            if (floor) floor.name = editModal.name;
+                            if (floor) { logMsg = `Renamed floor "${floor.name}" to "${editModal.name}"`; floor.name = editModal.name; }
                         }
                         else if (editModal.type === 'room') {
                             const f = d.floors.find(f => f.id === editModal.floorId);
                             const r = f?.rooms.find(x => x.id === editModal.roomId);
-                            if(r) { r.name = editModal.name; r.number = editModal.number; }
+                            if(r) { logMsg = `Renamed room "${r.name}" to "${editModal.name}"`; r.name = editModal.name; r.number = editModal.number; }
                         }
                         else if (editModal.type === 'box') {
                             const b = d.storageBoxes.find(x => x.id === editModal.boxId);
-                            if(b) { b.name = editModal.name; b.number = editModal.number; }
+                            if(b) { logMsg = `Renamed box "${b.name}" to "${editModal.name}"`; b.name = editModal.name; b.number = editModal.number; }
                         }
                         else if (editModal.type === 'storageRoom') {
                             const r = d.storageRooms.find(x => x.id === editModal.storageRoomId);
-                            if(r) { r.name = editModal.name; r.number = editModal.number; }
+                            if(r) { logMsg = `Renamed storage room "${r.name}" to "${editModal.name}"`; r.name = editModal.name; r.number = editModal.number; }
                         }
                         else if (editModal.type === 'category') {
                             const cat = d.catalog.find(c => c.id === editModal.catId);
-                            if (cat) cat.name = editModal.name;
+                            if (cat) { logMsg = `Renamed category "${cat.name}" to "${editModal.name}"`; cat.name = editModal.name; }
                         }
                         else if (editModal.type === 'subcategory') {
                             const cat = d.catalog.find(c => c.id === editModal.catId);
                             const sub = cat?.subCategories.find(s => s.id === editModal.subId);
-                            if (sub) sub.name = editModal.name;
+                            if (sub) { logMsg = `Renamed sub-category "${sub.name}" to "${editModal.name}"`; sub.name = editModal.name; }
                         }
                         else if (editModal.type === 'item') {
                             const cat = d.catalog.find(c => c.id === editModal.catId);
                             const sub = cat?.subCategories.find(s => s.id === editModal.subId);
                             const item = sub?.items.find(i => i.id === editModal.itemId);
                             if (item) {
+                                logMsg = `Renamed item "${item.name}" to "${editModal.name}"`;
                                 item.name = editModal.name;
                             }
                         }
+                        if (logMsg) addLog(d, logMsg);
                     });
                     setEditModal({ ...editModal, isOpen: false });
                 };
@@ -748,20 +866,108 @@
                 const updateStock = (type, ids, itemId, delta) => {
                     updateData(d => {
                         let t = null;
-                        if (type === 'room') t = d.floors.find(f => f.id === ids.floorId)?.rooms.find(r => r.id === ids.roomId);
-                        else if (type === 'box') t = d.storageBoxes.find(b => b.id === ids.boxId);
-                        else if (type === 'storageRoom') t = d.storageRooms.find(r => r.id === ids.storageRoomId);
-                        if (t) { const v = (t.stock[itemId] || 0) + delta; if (v <= 0) delete t.stock[itemId]; else t.stock[itemId] = v; }
+                        let tName = '';
+                        if (type === 'room') {
+                            const f = d.floors.find(f => f.id === ids.floorId);
+                            t = f?.rooms.find(r => r.id === ids.roomId);
+                            tName = t ? `${t.name} (${f.name})` : 'Unknown Room';
+                        }
+                        else if (type === 'box') {
+                            t = d.storageBoxes.find(b => b.id === ids.boxId);
+                            tName = t ? t.name : 'Unknown Box';
+                        }
+                        else if (type === 'storageRoom') {
+                            t = d.storageRooms.find(r => r.id === ids.storageRoomId);
+                            tName = t ? t.name : 'Unknown Storage Room';
+                        }
+
+                        if (t) { 
+                            const v = (t.stock[itemId] || 0) + delta; 
+                            if (v <= 0) delete t.stock[itemId]; else t.stock[itemId] = v; 
+                            
+                            // Find item name for log
+                            let itemName = 'Unknown Item';
+                            d.catalog.some(c => c.subCategories.some(s => s.items.some(i => {
+                                if (i.id === itemId) { itemName = i.name; return true; }
+                                return false;
+                            })));
+                            
+                            addLog(d, `Stock update: ${itemName} (${delta > 0 ? '+' : ''}${delta}) in ${tName}`);
+                        }
                     });
                 };
+                
+                const openTransferModal = (location, item, maxQty) => {
+                     setTransferModal({
+                          isOpen: true,
+                          sourceLocation: location,
+                          item: item,
+                          maxQty: maxQty,
+                          targetType: 'room',
+                          targetId: '',
+                          quantity: 1
+                     });
+                };
+
+                const executeTransfer = () => {
+                    const { sourceLocation, item, quantity, targetType, targetId } = transferModal;
+                    if (quantity <= 0 || quantity > transferModal.maxQty || !targetId) return;
+
+                    updateData(d => {
+                         // 1. Remove from source
+                         let sourceContainer;
+                         let sourceName = '';
+                         if (sourceLocation.type === 'room') {
+                             const f = d.floors.find(f => f.id === sourceLocation.floorId);
+                             sourceContainer = f?.rooms.find(r => r.id === sourceLocation.roomId);
+                             sourceName = sourceContainer ? sourceContainer.name : 'Unknown';
+                         }
+                         else if (sourceLocation.type === 'box') {
+                             sourceContainer = d.storageBoxes.find(b => b.id === sourceLocation.boxId);
+                             sourceName = sourceContainer ? sourceContainer.name : 'Unknown';
+                         }
+                         else if (sourceLocation.type === 'storageRoom') {
+                             sourceContainer = d.storageRooms.find(r => r.id === sourceLocation.storageRoomId);
+                             sourceName = sourceContainer ? sourceContainer.name : 'Unknown';
+                         }
+
+                         if (sourceContainer && sourceContainer.stock[item.id] >= quantity) {
+                              sourceContainer.stock[item.id] -= quantity;
+                              if (sourceContainer.stock[item.id] <= 0) delete sourceContainer.stock[item.id];
+                              
+                              // 2. Add to destination
+                              let destContainer;
+                              let destName = '';
+                              if (targetType === 'room') {
+                                   const [fId, rId] = targetId.split(':');
+                                   const f = d.floors.find(f => f.id === fId);
+                                   destContainer = f?.rooms.find(r => r.id === rId);
+                                   destName = destContainer ? destContainer.name : 'Unknown';
+                              } else if (targetType === 'box') {
+                                   destContainer = d.storageBoxes.find(b => b.id === targetId);
+                                   destName = destContainer ? destContainer.name : 'Unknown';
+                              } else if (targetType === 'storageRoom') {
+                                   destContainer = d.storageRooms.find(r => r.id === targetId);
+                                   destName = destContainer ? destContainer.name : 'Unknown';
+                              }
+
+                              if (destContainer) {
+                                   destContainer.stock[item.id] = (destContainer.stock[item.id] || 0) + parseInt(quantity);
+                                   addLog(d, `Transferred ${quantity} x ${item.name} from "${sourceName}" to "${destName}"`);
+                              }
+                         }
+                    });
+                    setTransferModal({...transferModal, isOpen: false});
+                };
+
 
                 // Catalog Actions
-                const addCategory = () => { if (newCategoryName.trim()) { updateData(d => d.catalog.push({ id: Date.now().toString(), name: newCategoryName, subCategories: [] })); setNewCategoryName(''); setIsAddingCategory(false); }};
-                const deleteCategory = (id) => setConfirmModal({ isOpen: true, title: 'Delete Category?', message: 'Remove category from master list?', onConfirm: () => { updateData(d => d.catalog = d.catalog.filter(c => c.id !== id)); setConfirmModal({ isOpen: false }); } });
+                const addCategory = () => { if (newCategoryName.trim()) { updateData(d => { d.catalog.push({ id: Date.now().toString(), name: newCategoryName, subCategories: [] }); addLog(d, `Added category: "${newCategoryName}"`); }); setNewCategoryName(''); setIsAddingCategory(false); }};
+                const deleteCategory = (id) => setConfirmModal({ isOpen: true, title: 'Delete Category?', message: 'Remove category from master list?', onConfirm: () => { updateData(d => { const c = d.catalog.find(x => x.id === id); d.catalog = d.catalog.filter(c => c.id !== id); addLog(d, `Deleted category: "${c?.name || 'Unknown'}"`); }); setConfirmModal({ isOpen: false }); } });
                 const openEditCategory = (c) => setEditModal({ isOpen: true, type: 'category', catId: c.id, name: c.name });
                 
-                const addSub = (cId, n) => updateData(d => d.catalog.find(c => c.id === cId)?.subCategories.push({ id: Date.now().toString(), name: n, items: [] }));
-                const delSub = (cId, sId) => updateData(d => { const c = d.catalog.find(x => x.id === cId); if(c) c.subCategories = c.subCategories.filter(s => s.id !== sId); });
+                const addSub = (cId, n) => updateData(d => { d.catalog.find(c => c.id === cId)?.subCategories.push({ id: Date.now().toString(), name: n, items: [] }); addLog(d, `Added sub-category: "${n}"`); });
+                const delSub = (cId, sId) => updateData(d => { const c = d.catalog.find(x => x.id === cId); if(c) { const s = c.subCategories.find(x => x.id === sId); c.subCategories = c.subCategories.filter(s => s.id !== sId); addLog(d, `Deleted sub-category: "${s?.name || 'Unknown'}"`); } });
                 const openEditSub = (cId, s) => setEditModal({ isOpen: true, type: 'subcategory', catId: cId, subId: s.id, name: s.name });
 
                 const addItem = (cId, sId, name) => {
@@ -793,11 +999,12 @@
                                 id: Date.now().toString(),
                                 name: cleanName
                             });
+                            addLog(d, `Created item: "${cleanName}"`);
                         }
                     });
                 };
 
-                const delItem = (cId, sId, iId) => setConfirmModal({ isOpen: true, title: 'Delete Item?', message: 'Remove item from master list?', onConfirm: () => { updateData(d => { const s = d.catalog.find(c => c.id === cId)?.subCategories.find(x => x.id === sId); if(s) s.items = s.items.filter(i => i.id !== iId); }); setConfirmModal({ isOpen: false }); } });
+                const delItem = (cId, sId, iId) => setConfirmModal({ isOpen: true, title: 'Delete Item?', message: 'Remove item from master list?', onConfirm: () => { updateData(d => { const s = d.catalog.find(c => c.id === cId)?.subCategories.find(x => x.id === sId); if(s) { const i = s.items.find(x => x.id === iId); s.items = s.items.filter(i => i.id !== iId); addLog(d, `Deleted item: "${i?.name || 'Unknown'}"`); } }); setConfirmModal({ isOpen: false }); } });
                 const openEditItem = (cId, sId, i) => setEditModal({ isOpen: true, type: 'item', catId: cId, subId: sId, itemId: i.id, name: i.name });
 
                 // File Handling
@@ -817,6 +1024,7 @@
                             if (newData) {
                                 if (!newData.storageBoxes) newData.storageBoxes = [];
                                 if (!newData.storageRooms) newData.storageRooms = [];
+                                if (!newData.activityLog) newData.activityLog = [];
                                 setPendingRestoreData(newData);
                                 setConfirmModal({ 
                                     isOpen: true, 
@@ -829,7 +1037,8 @@
                                             catalog: newData.catalog,
                                             floors: newData.floors,
                                             storageBoxes: newData.storageBoxes,
-                                            storageRooms: newData.storageRooms
+                                            storageRooms: newData.storageRooms,
+                                            activityLog: newData.activityLog
                                         };
                                         
                                         // Update local state first
@@ -837,7 +1046,7 @@
                                         
                                         // Then update Firebase
                                         if (user) {
-                                            const docRef = doc(db, 'inventory', 'main');
+                                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', 'main');
                                             setDoc(docRef, restoredData)
                                                 .then(() => console.log("Restore successful"))
                                                 .catch(err => console.error("Error saving restored data:", err));
@@ -867,6 +1076,7 @@
                             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                               <button onClick={handleBackup} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="Backup"><Download size={20}/></button>
                               <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="Restore"><Upload size={20}/></button>
+                              <button onClick={() => setShowActivityLog(true)} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="History"><Clock size={20}/></button>
                               <button onClick={() => setShowReport(true)} className="p-2.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-xl transition-all" title="Report"><FileText size={20}/></button>
                             </div>
                           </div>
@@ -884,17 +1094,102 @@
                                <div>
                                   <h3 className="font-bold">Configuration Error</h3>
                                   <p className="text-sm whitespace-pre-wrap">{errorMessage}</p>
-                               </div>
+                                </div>
                             </div>
                          </div>
                       )}
 
-                      <div className="max-w-6xl mx-auto px-4 py-6">{activeTab === 'locations' ? <LocationsView location={selectedLocation} data={data} onBack={() => setSelectedLocation(null)} onUpdateStock={updateStock} openEditRoom={openEditRoom} openEditBox={openEditBox} openEditStorageRoom={openEditStorageRoom} setExpandedFloors={setExpandedFloors} expandedFloors={expandedFloors} setExpandedStorageRooms={setExpandedStorageRooms} expandedStorageRooms={expandedStorageRooms} setExpandedBoxes={setExpandedBoxes} expandedBoxes={expandedBoxes} isAddingFloor={isAddingFloor} setIsAddingFloor={setIsAddingFloor} newFloorName={newFloorName} setNewFloorName={setNewFloorName} addFloor={addFloor} openEditFloor={openEditFloor} confirmDeleteFloor={confirmDeleteFloor} addingRoomToFloor={addingRoomToFloor} newRoomName={newRoomName} setNewRoomName={setNewRoomName} addRoom={addRoom} setAddingRoomToFloor={setAddingRoomToFloor} confirmDeleteRoom={confirmDeleteRoom} setSelectedLocation={setSelectedLocation} isAddingStorageRoom={isAddingStorageRoom} setIsAddingStorageRoom={setIsAddingStorageRoom} newStorageRoomName={newStorageRoomName} setNewStorageRoomName={setNewStorageRoomName} addStorageRoom={addStorageRoom} confirmDeleteStorageRoom={confirmDeleteStorageRoom} isAddingBox={isAddingBox} setIsAddingBox={setIsAddingBox} newBoxName={newBoxName} setNewBoxName={setNewBoxName} addStorageBox={addStorageBox} confirmDeleteBox={confirmDeleteBox} /> : <CatalogView data={data} isAddingCategory={isAddingCategory} setIsAddingCategory={setIsAddingCategory} newCategoryName={newCategoryName} setNewCategoryName={setNewCategoryName} addCategory={addCategory} expandedCategories={expandedCategories} setExpandedCategories={setExpandedCategories} deleteCategory={deleteCategory} openEditCategory={openEditCategory} addSub={addSub} delSub={delSub} openEditSub={openEditSub} addItem={addItem} delItem={delItem} openEditItem={openEditItem} expandedSubCategories={expandedSubCategories} setExpandedSubCategories={setExpandedSubCategories}/>}</div>
+                      <div className="max-w-6xl mx-auto px-4 py-6">{activeTab === 'locations' ? <LocationsView location={selectedLocation} data={data} onBack={() => setSelectedLocation(null)} onUpdateStock={updateStock} openEditRoom={openEditRoom} openEditBox={openEditBox} openEditStorageRoom={openEditStorageRoom} setExpandedFloors={setExpandedFloors} expandedFloors={expandedFloors} setExpandedStorageRooms={setExpandedStorageRooms} expandedStorageRooms={expandedStorageRooms} setExpandedBoxes={setExpandedBoxes} expandedBoxes={expandedBoxes} isAddingFloor={isAddingFloor} setIsAddingFloor={setIsAddingFloor} newFloorName={newFloorName} setNewFloorName={setNewFloorName} addFloor={addFloor} openEditFloor={openEditFloor} confirmDeleteFloor={confirmDeleteFloor} addingRoomToFloor={addingRoomToFloor} newRoomName={newRoomName} setNewRoomName={setNewRoomName} addRoom={addRoom} setAddingRoomToFloor={setAddingRoomToFloor} confirmDeleteRoom={confirmDeleteRoom} setSelectedLocation={setSelectedLocation} isAddingStorageRoom={isAddingStorageRoom} setIsAddingStorageRoom={setIsAddingStorageRoom} newStorageRoomName={newStorageRoomName} setNewStorageRoomName={setNewStorageRoomName} addStorageRoom={addStorageRoom} confirmDeleteStorageRoom={confirmDeleteStorageRoom} isAddingBox={isAddingBox} setIsAddingBox={setIsAddingBox} newBoxName={newBoxName} setNewBoxName={setNewBoxName} addStorageBox={addStorageBox} confirmDeleteBox={confirmDeleteBox} onOpenSwapRoom={openSwapRoomModal} onOpenTransfer={openTransferModal} /> : <CatalogView data={data} isAddingCategory={isAddingCategory} setIsAddingCategory={setIsAddingCategory} newCategoryName={newCategoryName} setNewCategoryName={setNewCategoryName} addCategory={addCategory} expandedCategories={expandedCategories} setExpandedCategories={setExpandedCategories} deleteCategory={deleteCategory} openEditCategory={openEditCategory} addSub={addSub} delSub={delSub} openEditSub={openEditSub} addItem={addItem} delItem={delItem} openEditItem={openEditItem} expandedSubCategories={expandedSubCategories} setExpandedSubCategories={setExpandedSubCategories}/>}</div>
                       {showReport && <ReportModal data={data} onClose={() => setShowReport(false)} />}
+                      {showActivityLog && <ActivityLogModal data={data} onClose={() => setShowActivityLog(false)} />}
                       
                       {/* Modals */}
                       {confirmModal.isOpen && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"><div className={`flex items-center gap-3 ${confirmModal.isAlert ? 'text-slate-700' : 'text-red-600'} mb-4`}><div className={`${confirmModal.isAlert ? 'bg-slate-100' : 'bg-red-50'} p-3 rounded-full`}><AlertTriangle size={28}/></div><h3 className="text-xl font-bold">{confirmModal.title}</h3></div><p className="text-slate-600 mb-8 whitespace-pre-wrap leading-relaxed">{confirmModal.message}</p><div className="flex gap-3">{confirmModal.onConfirm && <button onClick={confirmModal.onConfirm} className={`flex-1 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-100 transition-transform active:scale-95 ${confirmModal.isAlert ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>{confirmModal.isAlert ? 'OK' : 'Delete'}</button>}{!confirmModal.isAlert && <button onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })} className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-200 transition-transform active:scale-95">Cancel</button>}</div></div></div>}
                       {editModal.isOpen && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"><h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3"><div className="p-2 bg-blue-50 rounded-lg text-blue-600"><Edit2 size={20}/></div> Edit Item</h3><div className="space-y-5"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wide">Name</label><input autoFocus className="w-full px-4 py-3 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" value={editModal.name} onChange={e => setEditModal({...editModal, name: e.target.value})} onKeyDown={e => e.key === 'Enter' && saveEdit()}/></div>{['room', 'box', 'storageRoom'].includes(editModal.type) && <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wide">Number (Optional)</label><input className="w-full px-4 py-3 text-base border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" value={editModal.number} onChange={e => setEditModal({...editModal, number: e.target.value})} onKeyDown={e => e.key === 'Enter' && saveEdit()}/></div>}</div><div className="flex gap-3 mt-8"><button onClick={saveEdit} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-transform active:scale-95">Save Changes</button><button onClick={() => setEditModal({ ...editModal, isOpen: false })} className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-200 transition-transform active:scale-95">Cancel</button></div></div></div>}
+                      {transferModal.isOpen && (
+                         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                  <div className="p-2 bg-orange-100 text-orange-600 rounded-full"><ArrowRightLeft size={20}/></div>
+                                  Transfer Item
+                               </h3>
+                               <div className="bg-slate-50 p-3 rounded-xl mb-4 text-sm border border-slate-100">
+                                  <div className="font-bold text-slate-700">{transferModal.item?.name}</div>
+                                  <div className="text-slate-500">Max Quantity: {transferModal.maxQty}</div>
+                               </div>
+                               <div className="space-y-4">
+                                  <div>
+                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Transfer To</label>
+                                     <div className="flex gap-2 mb-2">
+                                        <button onClick={() => setTransferModal({...transferModal, targetType: 'room', targetId: ''})} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${transferModal.targetType === 'room' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200'}`}>Room</button>
+                                        <button onClick={() => setTransferModal({...transferModal, targetType: 'box', targetId: ''})} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${transferModal.targetType === 'box' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-500 border-slate-200'}`}>Box</button>
+                                        <button onClick={() => setTransferModal({...transferModal, targetType: 'storageRoom', targetId: ''})} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${transferModal.targetType === 'storageRoom' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>Storage</button>
+                                     </div>
+                                     <select className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" value={transferModal.targetId} onChange={e => setTransferModal({...transferModal, targetId: e.target.value})}>
+                                        <option value="">Select Destination</option>
+                                        {transferModal.targetType === 'room' && data.floors.map(f => (
+                                          <optgroup key={f.id} label={f.name}>
+                                            {f.rooms
+                                                .filter(r => !(transferModal.sourceLocation?.type === 'room' && transferModal.sourceLocation?.roomId === r.id))
+                                                .map(r => <option key={r.id} value={`${f.id}:${r.id}`}>{r.name}</option>)
+                                            }
+                                          </optgroup>
+                                        ))}
+                                        {transferModal.targetType === 'box' && data.storageBoxes
+                                            .filter(b => !(transferModal.sourceLocation?.type === 'box' && transferModal.sourceLocation?.boxId === b.id))
+                                            .map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        {transferModal.targetType === 'storageRoom' && data.storageRooms
+                                            .filter(r => !(transferModal.sourceLocation?.type === 'storageRoom' && transferModal.sourceLocation?.storageRoomId === r.id))
+                                            .map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                     </select>
+                                  </div>
+                                  <div>
+                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Quantity</label>
+                                     <input type="number" min="1" max={transferModal.maxQty} className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={transferModal.quantity} onChange={e => setTransferModal({...transferModal, quantity: e.target.value})} />
+                                  </div>
+                               </div>
+                               <div className="flex gap-3 mt-6">
+                                  <button onClick={executeTransfer} disabled={!transferModal.targetId} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">Confirm</button>
+                                  <button onClick={() => setTransferModal({ ...transferModal, isOpen: false })} className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200">Cancel</button>
+                               </div>
+                            </div>
+                         </div>
+                      )}
+                      {swapRoomModal.isOpen && (
+                         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                  <div className="p-2 bg-blue-100 text-blue-600 rounded-full"><ArrowRightLeft size={20}/></div>
+                                  Swap Room Position
+                               </h3>
+                               <div className="bg-slate-50 p-3 rounded-xl mb-4 text-sm border border-slate-100">
+                                  <div className="text-slate-500 text-xs uppercase font-bold">Swap From</div>
+                                  <div className="font-bold text-slate-700 text-lg">{swapRoomModal.sourceRoomName}</div>
+                               </div>
+                               <div className="space-y-4">
+                                  <div>
+                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Swap With (Select Target)</label>
+                                     <select className="w-full px-3 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-base bg-white" value={swapRoomModal.targetValue} onChange={e => setSwapRoomModal({...swapRoomModal, targetValue: e.target.value})}>
+                                        <option value="">Select Room...</option>
+                                        {data.floors.map(f => (
+                                          <optgroup key={f.id} label={f.name}>
+                                            {f.rooms
+                                                .filter(r => !(f.id === swapRoomModal.sourceFloorId && r.id === swapRoomModal.sourceRoomId))
+                                                .map(r => <option key={r.id} value={`${f.id}:${r.id}`}>{r.name}</option>)
+                                            }
+                                          </optgroup>
+                                        ))}
+                                     </select>
+                                     <p className="text-xs text-slate-400 mt-2 italic">This will exchange the positions and contents of the two selected rooms.</p>
+                                  </div>
+                               </div>
+                               <div className="flex gap-3 mt-6">
+                                  <button onClick={executeRoomSwap} disabled={!swapRoomModal.targetValue} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">Swap</button>
+                                  <button onClick={() => setSwapRoomModal({ ...swapRoomModal, isOpen: false })} className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200">Cancel</button>
+                               </div>
+                            </div>
+                         </div>
+                      )}
                     </div>
                 );
             };
