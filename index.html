@@ -582,19 +582,6 @@
                     const pageHeight = doc.internal.pageSize.height;
                     const margin = 14;
 
-                    // --- Calculate Detailed Stats for PDF ---
-                    let roomTotal = 0;
-                    let boxTotal = 0;
-                    let storageTotal = 0;
-
-                    filteredData.forEach(item => {
-                        item.locations.forEach(loc => {
-                            if(loc.type === 'room') roomTotal += loc.qty;
-                            if(loc.type === 'box') boxTotal += loc.qty;
-                            if(loc.type === 'storage') storageTotal += loc.qty;
-                        });
-                    });
-
                     // --- Header Helper ---
                     const drawHeader = (title, subtitle, rightText) => {
                         doc.setFillColor(...colors.accent);
@@ -630,6 +617,17 @@
                             doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
                             doc.text("Equipment Inventory Report", margin, pageHeight - 8);
                         }
+                    };
+
+                    // --- Helper: Group Data for Tables ---
+                    const groupItems = (itemsList) => {
+                        const groups = {};
+                        itemsList.forEach(item => {
+                            if (!groups[item.category]) groups[item.category] = {};
+                            if (!groups[item.category][item.subCategory]) groups[item.category][item.subCategory] = [];
+                            groups[item.category][item.subCategory].push(item);
+                        });
+                        return groups;
                     };
 
                     // --- Table Body Generator ---
@@ -701,53 +699,142 @@
                     doc.setTextColor(...colors.secondary);
                     doc.text(`Scope: ${filterText}`, margin, 36);
 
-                    // --- STATS CARDS (Updated Layout) ---
+                    // --- Calculate Detailed Stats for Counters ---
+                    let roomTotal = 0;
+                    let boxTotal = 0;
+                    let storageTotal = 0;
+
+                    filteredData.forEach(item => {
+                        item.locations.forEach(loc => {
+                            if(loc.type === 'room') roomTotal += loc.qty;
+                            if(loc.type === 'box') boxTotal += loc.qty;
+                            if(loc.type === 'storage') storageTotal += loc.qty;
+                        });
+                    });
+
+                    // --- STATS CARDS ---
                     const cardY = 44;
                     const gap = 4;
                     const availableWidth = pageWidth - (margin * 2);
-                    const cardW = (availableWidth - (gap * 3)) / 4; // 4 cards equally spaced
+                    const cardW = (availableWidth - (gap * 3)) / 4; 
                     
                     // Helper for cards
-                    const drawStatCard = (x, label, value, labelColor, valColor) => {
+                    const drawStatCard = (x, y, label, value, labelColor, valColor) => {
                         doc.setDrawColor(...colors.border);
                         doc.setFillColor(255, 255, 255);
-                        doc.roundedRect(x, cardY, cardW, 20, 2, 2, 'FD');
+                        doc.roundedRect(x, y, cardW, 18, 2, 2, 'FD');
                         
-                        doc.setFontSize(7);
+                        doc.setFontSize(6);
                         doc.setTextColor(...(labelColor || colors.light));
                         doc.setFont('helvetica', 'bold');
-                        doc.text(label, x + 4, cardY + 7);
+                        doc.text(label, x + 4, y + 6);
                         
-                        doc.setFontSize(12);
+                        doc.setFontSize(11);
                         doc.setTextColor(...(valColor || colors.primary));
-                        doc.text(value.toString(), x + 4, cardY + 16);
+                        doc.text(value.toString(), x + 4, y + 14);
                     };
 
-                    drawStatCard(margin, "TOTAL ITEMS", totalItemsCount, colors.light, colors.accent);
-                    drawStatCard(margin + cardW + gap, "IN ROOMS", roomTotal, colors.light);
-                    drawStatCard(margin + (cardW + gap) * 2, "IN BOXES", boxTotal, colors.light);
-                    drawStatCard(margin + (cardW + gap) * 3, "IN STORAGE", storageTotal, colors.light);
+                    // Row 1: Global Counters
+                    drawStatCard(margin, cardY, "TOTAL INVENTORY", totalItemsCount, colors.light, colors.accent);
+                    drawStatCard(margin + cardW + gap, cardY, "IN ROOMS", roomTotal, colors.light, colors.primary); 
+                    drawStatCard(margin + (cardW + gap) * 2, cardY, "IN BOXES", boxTotal, colors.light, colors.primary); 
+                    drawStatCard(margin + (cardW + gap) * 3, cardY, "IN STORAGE", storageTotal, colors.light, colors.primary); 
 
-                    // Master Table
-                    doc.autoTable({
-                        body: generateTableBody(groupedData),
-                        startY: 75,
-                        theme: 'grid', 
-                        styles: { 
-                            fontSize: 9, 
-                            cellPadding: 2,
-                            textColor: colors.secondary,
-                            font: 'helvetica',
-                            lineColor: colors.border,
-                            lineWidth: 0.1
-                        },
-                        columnStyles: { 
-                            0: { cellWidth: 'auto' }, 
-                            1: { cellWidth: 25 } 
-                        }
-                    });
+                    // --- SECTION TABLES ---
+                    let currentY = 70;
 
-                    // --- PAGE 2+: LOCATION PAGES ---
+                    const drawSectionTable = (title, items, titleColor) => {
+                         if (items.length === 0) return;
+
+                         // Check page break for header
+                         if (currentY > pageHeight - 30) {
+                             doc.addPage();
+                             currentY = 20;
+                         }
+
+                         // Section Header
+                         doc.setFontSize(10);
+                         doc.setTextColor(...(titleColor || colors.secondary));
+                         doc.setFont('helvetica', 'bold');
+                         doc.text(title.toUpperCase(), margin, currentY);
+                         currentY += 4;
+
+                         doc.autoTable({
+                            body: generateTableBody(groupItems(items)),
+                            startY: currentY,
+                            theme: 'grid', 
+                            styles: { 
+                                fontSize: 9, 
+                                cellPadding: 2,
+                                textColor: colors.secondary,
+                                font: 'helvetica',
+                                lineColor: colors.border,
+                                lineWidth: 0.1
+                            },
+                            columnStyles: { 
+                                0: { cellWidth: 'auto' }, 
+                                1: { cellWidth: 25 } 
+                            },
+                            margin: { left: margin, right: margin }
+                        });
+                        currentY = doc.lastAutoTable.finalY + 10;
+                    };
+
+                    // Helper to generate a specific location type section
+                    const generateLocationSection = (sectionTitle, typeKey) => {
+                        // 1. Get Items for this location type only
+                        const itemsInType = filteredData.map(item => {
+                            const qty = item.locations
+                                .filter(l => l.type === typeKey)
+                                .reduce((sum, l) => sum + l.qty, 0);
+                            return { ...item, total: qty }; // Override total for this table context
+                        }).filter(i => i.total > 0);
+
+                        if (itemsInType.length === 0) return;
+
+                        // 2. Split by Status
+                        const std = [], inc = [], def = [];
+                        itemsInType.forEach(item => {
+                            const n = item.name.toLowerCase();
+                            if (n.includes('defect')) def.push(item);
+                            else if (n.includes('incomplete')) inc.push(item);
+                            else std.push(item);
+                        });
+
+                        // 3. Draw Main Section Banner
+                        if (currentY > pageHeight - 40) { doc.addPage(); currentY = 20; }
+                        
+                        doc.setFillColor(...colors.bg);
+                        doc.roundedRect(margin, currentY, pageWidth - (margin*2), 12, 1, 1, 'F');
+                        
+                        doc.setFontSize(12);
+                        doc.setTextColor(...colors.primary);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(sectionTitle, margin + 4, currentY + 8);
+                        
+                        // Add Total Count for this Section on the right
+                        const sectionTotal = itemsInType.reduce((a,b) => a + b.total, 0);
+                        doc.setFontSize(10);
+                        doc.setTextColor(...colors.secondary);
+                        doc.text(`Total: ${sectionTotal}`, pageWidth - margin - 4, currentY + 8, {align: 'right'});
+
+                        currentY += 18;
+
+                        // 4. Draw Sub-Tables
+                        drawSectionTable("Standard Items", std, colors.primary);
+                        drawSectionTable("Incomplete Items", inc, [234, 88, 12]); // Orange
+                        drawSectionTable("Defective Items", def, [220, 38, 38]); // Red
+                        
+                        currentY += 5; // Spacing after section
+                    };
+
+                    // Generate the 3 Main Sections
+                    generateLocationSection("ROOMS INVENTORY", "room");
+                    generateLocationSection("STORAGE BOXES INVENTORY", "box");
+                    generateLocationSection("STORAGE ROOMS INVENTORY", "storage");
+
+
+                    // --- PAGE 2+: DETAILED ALLOCATION PAGES ---
                     
                     const getItemDetails = (id) => filteredData.find(i => i.id === id); 
 
@@ -784,12 +871,7 @@
                         doc.text(`${count} Items`, pageWidth - margin, 28, { align: 'right' });
 
                         // Grouping for Location Page
-                        const grouped = {};
-                        items.forEach(i => {
-                            if (!grouped[i.category]) grouped[i.category] = {};
-                            if (!grouped[i.category][i.subCategory]) grouped[i.category][i.subCategory] = [];
-                            grouped[i.category][i.subCategory].push(i);
-                        });
+                        const grouped = groupItems(items);
 
                         doc.autoTable({
                             body: generateTableBody(grouped),
@@ -809,7 +891,7 @@
                         });
                     };
                     
-                    // Iterate based on Location Filter
+                    // Iterate based on Location Filter (Allocation Pages)
                     if (filterLocation === '') {
                         data.floors.forEach(f => f.rooms.forEach(r => addLocationPage(r.name, `Room • ${f.name}`, r.stock)));
                         data.storageBoxes.forEach(b => addLocationPage(b.name, 'Storage Box', b.stock));
